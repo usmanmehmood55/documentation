@@ -65,6 +65,19 @@ Enforce all rules in this skill while editing:
 - concise, present-tense, factual wording
 - Markdown formatting rules in this document
 
+After editing Markdown files, always check formatting drift across all affected
+Markdown files first:
+
+- Run `python scripts/format_markdown.py --check <path/to/file.md> [...]`.
+- If multiple files were changed, include all of them in the same check run.
+- Review the reported drift and then ask the user before running the formatter
+  in write mode.
+- When the user approves formatting, run
+  `python scripts/format_markdown.py <path/to/file.md> [...]`.
+- The formatter renumbers headings, normalizes spacing, formats Markdown
+  tables, preserves fenced code blocks, and warns when table rows exceed
+  130 characters so they can be compacted.
+
 ### 2.4. Keep docs aligned
 
 When one document is updated, check whether related documents must also be
@@ -124,7 +137,7 @@ When creating or editing documentation, enforce these rules.
 - Prefer lists over long comma-separated prose.
 - Do not use `1)` or `2)` heading styles.
 
-### 4.1.1. Headings
+#### 4.1.1. Headings
 
 - The first heading (`#`) is the document title and is not numbered.
 - Use numbered headings after the title.
@@ -142,7 +155,7 @@ Examples:
 - `### 1.1. Windows installation`
 - `#### 1.1.1. Quick installation fix`
 
-### 4.1.2. Tables
+#### 4.1.2. Tables
 
 Use tables when they improve readability over lists.
 
@@ -155,7 +168,7 @@ Table rules:
   sub-bullets instead.
 - Keep wording in table cells short and factual.
 
-### 4.1.3. Diagrams
+#### 4.1.3. Diagrams
 
 Use simple text/block diagrams when they help explain system shape or ownership.
 
