@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "docs": [
+    {
+      "path": "README.md",
+      "status": "active",
+      "role": "overview",
+      "topics": ["overview"],
+      "canonical_topics": ["overview"]
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "status": "active",
+      "role": "architecture",
+      "topics": ["architecture", "system-design"],
+      "canonical_topics": ["architecture", "system-design"]
+    },
+    {
+      "path": "docs/WRAP_OK.md",
+      "status": "active",
+      "role": "reference",
+      "topics": ["reference"],
+      "canonical_topics": ["reference"]
+    }
+  ],
+  "topic_map": {
+    "overview": "README.md",
+    "architecture": "docs/ARCHITECTURE.md",
+    "system-design": "docs/ARCHITECTURE.md",
+    "reference": "docs/WRAP_OK.md"
+  }
+}

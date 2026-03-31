@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "topics": [],
+  "docs": [
+    {
+      "path": "README.md",
+      "status": "active",
+      "role": "overview",
+      "topics": ["overview", "setup", "usage"],
+      "canonical_topics": ["overview", "setup"]
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "status": "active",
+      "role": "architecture",
+      "topics": ["architecture", "system-design"],
+      "canonical_topics": ["architecture", "system-design"]
+    },
+    {
+      "path": "docs/DEPLOYMENT.md",
+      "status": "frozen",
+      "role": "deployment",
+      "topics": ["deployment"],
+      "canonical_topics": ["deployment"]
+    }
+  ],
+  "topic_map": {
+    "overview": "README.md",
+    "setup": "README.md",
+    "architecture": "docs/ARCHITECTURE.md",
+    "system-design": "docs/ARCHITECTURE.md",
+    "deployment": "docs/DEPLOYMENT.md"
+  }
+}

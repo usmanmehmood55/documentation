@@ -57,6 +57,25 @@ Prefer the smallest correct edit set.
 - If related files appear stale but are outside the requested scope, mention
   them in the final report instead of editing them by default.
 
+### 2.4. Documentation config
+
+If `docs/docs-config.json` exists, use it as the source of truth for
+documentation topology.
+
+This includes:
+
+- which docs are part of the documentation surface
+- each doc's status, such as `active`, `frozen`, `archived`, or `generated`
+- each doc's role and declared topics
+- canonical topic ownership from `topic_map`
+
+Use this config for topology only. Do not treat it as the source of truth for
+product behavior, API contracts, config defaults, or command truth.
+
+If the config is missing or incomplete, infer the documentation surface from
+the repository. If it is missing and the task is in scope, create it before
+continuing and mention that in the final report.
+
 ## 3. Modes
 
 First determine which mode applies.
@@ -116,7 +135,26 @@ Classify the request as one of:
 
 If the user names a file or topic, prioritize that area first.
 
-### 4.2. Inspect the source of truth
+### 4.2. Load documentation topology
+
+Before editing, load documentation topology from `docs/docs-config.json` when
+present.
+
+Use it to determine:
+
+- which docs are in scope
+- which docs must not be edited
+- which doc is canonical for the requested topic
+- whether related docs should be updated or only reported as out of scope
+
+If available, prefer helper-script output over manual inference for inventory,
+topic ownership, frozen-doc detection, heading checks, line-wrap checks, and
+Markdown link checks.
+
+If `docs/docs-config.json` is missing and the task is in scope, create it with
+`index_docs.py --write-config` before continuing.
+
+### 4.3. Inspect the source of truth
 
 Before editing, inspect the codebase and config relevant to the request.
 
@@ -133,7 +171,7 @@ Check as relevant:
 
 Do not preserve claims that the codebase does not support.
 
-### 4.3. Identify drift
+### 4.4. Identify drift
 
 Look for:
 
@@ -146,7 +184,7 @@ Look for:
 - historical comparisons outside explicitly historical docs
 - stale diagrams or architecture summaries
 
-### 4.4. Edit minimally
+### 4.5. Edit minimally
 
 Preserve accurate content. Change only what is needed for:
 
@@ -157,7 +195,7 @@ Preserve accurate content. Change only what is needed for:
 
 Avoid stylistic churn that does not improve correctness or maintainability.
 
-### 4.5. Keep related docs aligned
+### 4.6. Keep related docs aligned
 
 If one change affects another document, update the related document when needed
 to prevent contradictions.
@@ -169,7 +207,41 @@ Examples:
   docs
 - renaming a command may require updates in setup, examples, and troubleshooting
 
-### 4.6. Validate formatting
+### 4.7. Use helper scripts
+
+When available, use the lightweight helper scripts in this skill to reduce
+manual scanning and improve consistency.
+
+Preferred scripts:
+
+- `index_docs.py`
+- `build_topic_map.py`
+- `create_topic.py`
+- `check_frozen_docs.py`
+- `check_heading_style.py`
+- `check_line_wrap.py`
+- `check_doc_links.py`
+
+Script rules:
+
+- prefer JSON output when available
+- treat exit code `0` as no issues found
+- treat exit code `1` as issues found
+- treat exit code `2` as config or usage error
+- treat exit code `3` as runtime failure
+- prefer script output over manual inference for topology, frozen status,
+  heading style, wrap issues, and link validity
+- use `index_docs.py --write-config` to bootstrap `docs/docs-config.json` when
+  it does not exist
+- use `build_topic_map.py --json --suggest-topics` when reviewing or expanding
+  per-document topic lists so the agent can see candidate topics inferred from
+  filenames and headings
+- use `create_topic.py <topic>` to register new topics explicitly in the config
+  after the user or the agent has decided they belong in the documentation
+  topology
+- summarize relevant script findings in the final report
+
+### 4.8. Validate formatting
 
 After editing, validate all changed Markdown files with the bundled formatter.
 
@@ -215,7 +287,7 @@ Write mode:
 
 `python <this-skill>/scripts/format_markdown.py [flags] <file.md> [...]`
 
-### 4.7. Final report
+### 4.9. Final report
 
 At the end, report:
 
@@ -316,7 +388,28 @@ Keep names, values, and wording aligned across docs.
 - where values are configurable, describe them as configurable instead of
   copying possibly divergent values into multiple docs
 
-### 5.6. Sensitive information
+### 5.6. Documentation config maintenance
+
+When `docs/docs-config.json` exists and the task is in scope:
+
+- keep doc paths aligned with actual files
+- add newly created docs to the config
+- remove deleted docs from the config
+- update doc status when a doc becomes `frozen`, `archived`, or `generated`
+- keep each doc's topics aligned with what the document materially covers, not
+  just a single filename-derived label
+- keep `topic_map` aligned with canonical topic ownership
+- do not assign the same canonical topic to multiple docs unless the user
+  explicitly wants that ambiguity
+- treat topics as explicit config entries, not as a hardcoded built-in list
+- use `topics` for all meaningful topics the doc materially covers
+- use `canonical_topics` only for the smaller subset the doc owns as the
+  primary source of truth
+- do not create topics from every heading mechanically; use filenames,
+  headings, and document content as evidence for topic candidates, then keep
+  only the meaningful stable topics
+
+### 5.7. Sensitive information
 
 Do not document secrets or sensitive operational values.
 
@@ -330,7 +423,7 @@ Do not document secrets or sensitive operational values.
   redact them when the task is in scope and mention the issue in the final
   report
 
-### 5.7. Formatting
+### 5.8. Formatting
 
 Enforce these Markdown syntax rules in all edited or newly created Markdown
 files unless the user explicitly requests otherwise:
@@ -342,7 +435,7 @@ files unless the user explicitly requests otherwise:
 - Prefer lists over long comma-separated prose.
 - Do not use `1)` or `2)` heading styles.
 
-### 5.8. Headings
+### 5.9. Headings
 
 Enforce numbered headings in all newly created Markdown files and in edited
 Markdown files where headings are added, removed, moved, or already numbered,
@@ -368,7 +461,7 @@ Examples:
 - `### 1.1. Windows installation`
 - `#### 1.1.1. Quick installation fix`
 
-### 5.9. Tables
+### 5.10. Tables
 
 Use tables only when they improve readability.
 
@@ -385,7 +478,7 @@ If a table becomes too wide or awkward in raw Markdown, convert it to a list.
 
 Keep table cells short and factual.
 
-### 5.10. Diagrams
+### 5.11. Diagrams
 
 Preserve useful diagrams when they still reflect the codebase.
 
@@ -396,7 +489,7 @@ If a diagram is stale:
 
 Do not remove a useful diagram just to replace it with prose by default.
 
-### 5.11. Behavior when uncertain
+### 5.12. Behavior when uncertain
 
 - prefer shorter, factual wording
 - prefer removing questionable claims over preserving them

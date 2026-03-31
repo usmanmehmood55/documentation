@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "docs": [
+    {
+      "path": "README.md",
+      "status": "active",
+      "role": "overview",
+      "topics": ["overview"],
+      "canonical_topics": ["overview"]
+    },
+    {
+      "path": "docs/DEPLOYMENT.md",
+      "status": "active",
+      "role": "deployment",
+      "topics": ["deployment"],
+      "canonical_topics": ["deployment"]
+    }
+  ],
+  "topic_map": {
+    "overview": "README.md",
+    "deployment": "docs/DEPLOYMENT.md"
+  }
+}
