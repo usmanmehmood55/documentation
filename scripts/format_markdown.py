@@ -19,10 +19,32 @@ ORDERED_LIST_RE   = re.compile(r"^[ \t]{0,3}\d+[.)][ \t]+")
 WRAP_WIDTH        = 80
 WRAP_THRESHOLD    = 85
 TABLE_WIDTH_LIMIT = 130
+ALL_FIXES = {"headings", "tables", "wrap", "spacing"}
+
+
+def format_markdown(text: str, fixes: set[str] | None = None) -> str:
+    fixes = ALL_FIXES if fixes is None else fixes
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    lines = normalized.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    if "headings" in fixes:
+        lines = renumber_headings(lines)
+    if "wrap" in fixes:
+        lines = wrap_prose_lines(lines)
+    if "tables" in fixes:
+        lines = normalize_tables(lines)
+    if "spacing" in fixes:
+        lines = normalize_spacing(lines)
+        lines = trim_trailing_blank_lines(lines)
+    return "\n".join(lines) + "\n"
 
 
 def format_headings(text: str) -> str:
-    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    return format_markdown(text)
+
+
+def renumber_headings(lines: list[str]) -> list[str]:
     counters = [0] * 6
     seen_title = False
     in_front_matter = False
@@ -37,27 +59,27 @@ def format_headings(text: str) -> str:
             front_matter_checked = True
             if stripped == "---":
                 in_front_matter = True
-                output.append(stripped)
+                output.append(line)
                 continue
 
         if in_front_matter:
-            output.append(stripped)
+            output.append(line)
             if index != 0 and stripped == "---":
                 in_front_matter = False
             continue
 
         if FENCE_RE.match(stripped):
             in_fence = not in_fence
-            output.append(stripped)
+            output.append(line)
             continue
 
         if in_fence:
-            output.append(stripped)
+            output.append(line)
             continue
 
         match = HEADING_RE.match(stripped)
         if not match:
-            output.append(stripped)
+            output.append(line)
             continue
 
         level = len(match.group("marks"))
@@ -87,11 +109,7 @@ def format_headings(text: str) -> str:
         heading_text = NUMBER_PREFIX_RE.sub("", raw_text)
         output.append(f"{indent}{'#' * level} {number}. {heading_text}")
 
-    output = wrap_prose_lines(output)
-    output = normalize_tables(output)
-    output = normalize_heading_spacing(output)
-    output = trim_trailing_blank_lines(output)
-    return "\n".join(output) + "\n"
+    return output
 
 
 def find_table_width_suggestions(text: str) -> list[str]:
@@ -129,6 +147,45 @@ def find_table_width_suggestions(text: str) -> list[str]:
             )
 
     return suggestions
+
+
+def find_heading_numbering_warnings(text: str) -> list[str]:
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    expected_lines = renumber_headings(lines)
+    warnings: list[str] = []
+
+    for index, (original, expected) in enumerate(zip(lines, expected_lines), start=1):
+        original_match = HEADING_RE.match(original.rstrip())
+        expected_match = HEADING_RE.match(expected.rstrip())
+
+        if original_match is None or expected_match is None:
+            continue
+
+        original_level = len(original_match.group("marks"))
+        original_text = original_match.group("text").strip()
+        expected_text = expected_match.group("text").strip()
+
+        if original_level == 1:
+            if original_text != expected_text:
+                warnings.append(
+                    f"Warning: heading numbering is invalid at line {index}; "
+                    f"expected `{expected.rstrip()}`."
+                )
+            continue
+
+        if original.rstrip() == expected.rstrip():
+            continue
+
+        issue = "missing"
+        if NUMBER_PREFIX_RE.match(original_text):
+            issue = "mis-numbered"
+
+        warnings.append(
+            f"Warning: heading numbering is {issue} at line {index}; expected "
+            f"`{expected.rstrip()}`."
+        )
+
+    return warnings
 
 
 def wrap_prose_lines(lines: list[str]) -> list[str]:
@@ -225,7 +282,8 @@ def normalize_tables(lines: list[str]) -> list[str]:
     return output
 
 
-def normalize_heading_spacing(lines: list[str]) -> list[str]:
+def normalize_spacing(lines: list[str]) -> list[str]:
+    lines = strip_trailing_spaces(lines)
     output: list[str] = []
     in_front_matter = False
     front_matter_checked = False
@@ -268,6 +326,42 @@ def normalize_heading_spacing(lines: list[str]) -> list[str]:
         output.append(line)
 
     return collapse_consecutive_blank_lines(output)
+
+
+def strip_trailing_spaces(lines: list[str]) -> list[str]:
+    output: list[str] = []
+    in_front_matter = False
+    front_matter_checked = False
+    in_fence = False
+
+    for index, line in enumerate(lines):
+        stripped = line.rstrip()
+
+        if not front_matter_checked:
+            front_matter_checked = True
+            if stripped == "---":
+                in_front_matter = True
+                output.append(line)
+                continue
+
+        if in_front_matter:
+            output.append(line)
+            if index != 0 and stripped == "---":
+                in_front_matter = False
+            continue
+
+        if FENCE_RE.match(stripped):
+            in_fence = not in_fence
+            output.append(line)
+            continue
+
+        if in_fence:
+            output.append(line)
+            continue
+
+        output.append(stripped)
+
+    return output
 
 
 def collapse_consecutive_blank_lines(lines: list[str]) -> list[str]:
@@ -454,11 +548,29 @@ def is_table_line(line: str) -> bool:
     return stripped.startswith("|")
 
 
+def determine_enabled_fixes(args: argparse.Namespace) -> set[str]:
+    selected = set()
+
+    if args.headings:
+        selected.add("headings")
+    if args.tables:
+        selected.add("tables")
+    if args.wrap:
+        selected.add("wrap")
+    if args.spacing:
+        selected.add("spacing")
+
+    if args.all or not selected:
+        return set(ALL_FIXES)
+
+    return selected
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Renumber Markdown headings so the first H1 stays unnumbered and "
-            "lower headings use hierarchical numbering."
+            "Format Markdown documentation with selective passes for heading "
+            "numbering, wrapping, table formatting, and spacing."
         )
     )
     parser.add_argument("paths", nargs="+", help="Markdown files to format.")
@@ -472,21 +584,52 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print formatted output instead of writing files.",
     )
+    parser.add_argument(
+        "--headings",
+        action="store_true",
+        help="Fix heading numbering only.",
+    )
+    parser.add_argument(
+        "--tables",
+        action="store_true",
+        help="Format Markdown tables only.",
+    )
+    parser.add_argument(
+        "--wrap",
+        action="store_true",
+        help="Wrap long prose lines only.",
+    )
+    parser.add_argument(
+        "--spacing",
+        action="store_true",
+        help="Fix spacing only.",
+    )
+    parser.add_argument(
+        "-all",
+        "--all",
+        action="store_true",
+        help="Run all formatting passes.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    fixes = determine_enabled_fixes(args)
     changed = False
 
     for raw_path in args.paths:
         path = Path(raw_path)
         original = path.read_text(encoding="utf-8")
-        formatted = format_headings(original)
-        suggestions = find_table_width_suggestions(formatted)
+        formatted = format_markdown(original, fixes=fixes)
+        if "tables" in fixes:
+            suggestions = find_table_width_suggestions(formatted)
+            for suggestion in suggestions:
+                sys.stderr.write(f"{path}: {suggestion}\n")
 
-        for suggestion in suggestions:
-            print(f"{path}: {suggestion}", file=sys.stderr)
+        if args.check and "headings" in fixes:
+            for warning in find_heading_numbering_warnings(original):
+                sys.stderr.write(f"{path}: {warning}\n")
 
         if args.stdout:
             if len(args.paths) > 1:

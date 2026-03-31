@@ -41,11 +41,76 @@ class FormatMarkdownHeadingsTests(unittest.TestCase):
             with mock.patch.object(Path, "read_text", return_value=original):
                 with mock.patch.object(Path, "write_text") as write_text:
                     with mock.patch("builtins.print") as print_mock:
-                        result = formatter.main()
+                        with mock.patch("sys.stderr", new_callable=io.StringIO):
+                            result = formatter.main()
 
         self.assertEqual(result, 1)
         write_text.assert_not_called()
         print_mock.assert_called_once_with(f"Would reformat {path}")
+
+    def test_selective_headings_pass_only_changes_heading_numbers(self) -> None:
+        content = (
+            "# Title\n\n"
+            "## Section\n\n"
+            "This is a deliberately long line that should remain untouched because wrapping is not enabled in this pass.\n\n"
+            "| Col B | Col A |\n"
+            "| --- | --- |\n"
+            "| value | data |\n"
+        )
+
+        expected = (
+            "# Title\n\n"
+            "## 1. Section\n\n"
+            "This is a deliberately long line that should remain untouched because wrapping is not enabled in this pass.\n\n"
+            "| Col B | Col A |\n"
+            "| --- | --- |\n"
+            "| value | data |\n"
+        )
+
+        self.assertEqual(formatter.format_markdown(content, fixes={"headings"}), expected)
+
+    def test_selective_tables_pass_only_formats_tables(self) -> None:
+        content = (
+            "# Title\n\n"
+            "## Section\n\n"
+            "| Col B | Col A |\n"
+            "| --- | --- |\n"
+            "| value | data |\n"
+        )
+
+        expected = (
+            "# Title\n\n"
+            "## Section\n\n"
+            "| Col B | Col A |\n"
+            "| ----- | ----- |\n"
+            "| value | data  |\n"
+        )
+
+        self.assertEqual(formatter.format_markdown(content, fixes={"tables"}), expected)
+
+    def test_selective_wrap_pass_only_wraps_text(self) -> None:
+        content = (
+            "# Title\n\n"
+            "## Section\n\n"
+            "This is a deliberately long line that should wrap because only prose wrapping is enabled for this test case.\n"
+        )
+
+        expected = (
+            "# Title\n\n"
+            "## Section\n\n"
+            "This is a deliberately long line that should wrap because only prose wrapping is\n"
+            "enabled for this test case.\n"
+        )
+
+        self.assertEqual(formatter.format_markdown(content, fixes={"wrap"}), expected)
+
+    def test_all_option_matches_default_formatter(self) -> None:
+        source = (ROOT / "tests" / "general_test_in.md").read_text(encoding="utf-8")
+
+        self.assertEqual(
+            formatter.format_markdown(source, fixes=set(formatter.ALL_FIXES)),
+            formatter.format_headings(source),
+        )
 
     def test_does_not_wrap_code_blocks_or_tables(self) -> None:
         content = (
@@ -127,6 +192,25 @@ class FormatMarkdownHeadingsTests(unittest.TestCase):
         self.assertIn(str(path), stderr.getvalue())
         self.assertIn("compact the table row", stderr.getvalue())
         self.assertIn("130 characters", stderr.getvalue())
+
+    def test_check_mode_warns_for_missing_and_misnumbered_headings(self) -> None:
+        path = Path("sample.md")
+        original = "# Title\n\n## Intro\n\n### 9.7. Wrong number\n"
+
+        with mock.patch.object(
+            sys, "argv", ["format_markdown.py", "--check", "--headings", str(path)]
+        ):
+            with mock.patch.object(Path, "read_text", return_value=original):
+                with mock.patch.object(Path, "write_text") as write_text:
+                    with mock.patch("builtins.print") as print_mock:
+                        with mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+                            result = formatter.main()
+
+        self.assertEqual(result, 1)
+        write_text.assert_not_called()
+        print_mock.assert_called_once_with(f"Would reformat {path}")
+        self.assertIn("heading numbering is missing", stderr.getvalue())
+        self.assertIn("heading numbering is mis-numbered", stderr.getvalue())
 
 
 if __name__ == "__main__":

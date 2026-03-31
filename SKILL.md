@@ -68,12 +68,31 @@ Enforce all rules in this skill while editing:
 After editing Markdown files, always check formatting drift across all affected
 Markdown files first:
 
-- Run `python scripts/format_markdown.py --check <path/to/file.md> [...]`.
+- Run the bundled formatter from this skill folder:
+  `python <this-skill>/scripts/format_markdown.py --check [flags] <path/to/file.md> [...]`.
+- Resolve the formatter path relative to this skill directory, not the target
+  repository.
+- Do not assume the target repository contains its own
+  `scripts/format_markdown.py`.
+- Use the narrowest formatter flags that match the user's request:
+  - `--headings` = heading numbering only
+  - `--tables` = table formatting only
+  - `--wrap` = prose wrapping only
+  - `--spacing` = spacing cleanup only
+  - `-all` or `--all` = full formatting pass
+- If no specific scope was requested and you are doing a general formatting
+  pass, use `--all`.
 - If multiple files were changed, include all of them in the same check run.
-- Review the reported drift and then ask the user before running the formatter
-  in write mode.
+- In check mode, show the user all reported drift and warnings before taking any
+  write action.
+- This includes every `Would reformat ...` result, every heading-numbering
+  warning, and every wide-table warning produced by the formatter.
+- After showing the full check output to the user, ask whether to run the
+  write-mode formatter pass.
+- When `--headings` or `--all` are used with `--check`, review any warnings
+  about missing or mis-numbered heading numbering before asking the user.
 - When the user approves formatting, run
-  `python scripts/format_markdown.py <path/to/file.md> [...]`.
+  `python <this-skill>/scripts/format_markdown.py [flags] <path/to/file.md> [...]`.
 - The formatter renumbers headings, normalizes spacing, formats Markdown
   tables, preserves fenced code blocks, and warns when table rows exceed
   130 characters so they can be compacted.
