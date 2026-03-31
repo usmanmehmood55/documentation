@@ -1,153 +1,339 @@
 ---
 name: documentation
-description: Create, update, sync, and review Markdown documentation so it stays accurate, current-state only, code-aligned, and non-duplicative. Use when the user asks to write docs, update README/docs/*.md, sync docs with the codebase, enforce documentation rules, or review docs for drift, stale content, overlap, or inconsistent naming. Do not use for roadmap writing, speculative design, historical writeups, or changelog-style release narration unless the user explicitly asks for that.
+description: Review, create, update, and sync Markdown documentation so it stays accurate, current-state only, code-aligned, concise, and non-duplicative. Use when the user asks to write docs, update README/docs/*.md, sync docs with the codebase, review docs for drift, stale content, overlap, or inconsistent naming, or enforce documentation standards. Do not use for roadmap writing, speculative design, historical writeups, migration narratives, or changelog-style release narration unless the user explicitly asks for them.
 ---
 
 # Documentation
 
-When asked to create, maintain, sync, or review documentation, follow this
+When asked to review, create, maintain, or sync documentation, follow this
 workflow and these rules.
 
-## 1. Scope
+## 1. Goal
 
-When invoked, consider the following as the primary documentation surface:
+Keep documentation aligned with the current codebase and easy to maintain.
 
-- **Root Level**: `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`.
-- **Project Docs**: Any files within `/docs` or similar documentation folders.
-- **Module Readmes**: Nested `README.md` files within sub-packages or service directories.
+Priorities, in order:
 
-Documentation excludes:
+- correctness
+- current-state only
+- consistency with the codebase
+- non-duplication
+- minimal necessary churn
+- readability
 
-- Any documents that are explicitly mentioned as "frozen", should not be changed.
+Treat code, config, and actual file paths as the source of truth. Do not invent
+behavior that is not present in the repository.
 
-When working on a request, update all affected documentation needed to keep the
-docs consistent. Do not limit changes to a single file if related files also
-need correction, unless the user explicitly asks for a file-local edit only.
+## 2. Scope
 
-## 2. Workflow
+### 2.1. Primary documentation surface
 
-### 2.1. Determine scope
+Consider these as the main documentation surface unless the user narrows scope:
 
-First determine whether the request is:
+- `README.md`
+- `CONTRIBUTING.md`
+- `CHANGELOG.md`
+- files under `docs/` or similar documentation directories
+- nested `README.md` files in packages, services, or modules
 
-- a full documentation pass
-- a specific file update
-- a topic-specific sync
-- a documentation review without edits
+### 2.2. Exclusions
 
-If the user names a file or topic, prioritize that area first, but still check
-for dependent documentation that may also need updates.
+Do not edit:
 
-### 2.2. Inspect the source of truth
+- files explicitly marked as frozen, archived, or generated
+- historical or release-history sections of `CHANGELOG.md` unless the user
+  explicitly asks
+- roadmap, proposal, migration-story, or retrospective documents unless the
+  user explicitly asks
+- non-Markdown files unless the user explicitly wants the same rules applied
 
-Before editing documentation, inspect the codebase and config that define the
-current behavior. Treat code, config, and currently used file names as the
-source of truth.
+### 2.3. Scope discipline
 
-Check at minimum, when relevant:
+Prefer the smallest correct edit set.
 
-- endpoints and request/response behavior
+- If the user names a file, start there.
+- If related docs must change to avoid contradictions, update them too.
+- Do not expand into a repo-wide rewrite unless the user asked for a full pass.
+- If related files appear stale but are outside the requested scope, mention
+  them in the final report instead of editing them by default.
+
+## 3. Modes
+
+First determine which mode applies.
+
+### 3.1. Review only
+
+Use when the user asked for a documentation review, drift check, or audit
+without edits.
+
+Output:
+
+- files reviewed
+- inconsistencies found
+- stale or duplicated content found
+- recommended edits
+- anything that could not be verified from the codebase
+
+### 3.2. Targeted update
+
+Use when the user asked for a specific file or topic update.
+
+Edit only the requested area plus any directly dependent docs that would become
+incorrect or contradictory if left unchanged.
+
+### 3.3. Topic sync
+
+Use when the user asked to sync a topic across docs, such as:
+
 - environment variables
-- config values and defaults
-- file names and paths
-- scripts and commands
-- current feature availability and limitations
+- API behavior
+- CLI commands
+- file paths
+- configuration defaults
+- naming changes
 
-Do not invent behavior that is not present in the codebase.
+Update every doc that materially describes that topic.
 
-### 2.3. Apply documentation rules
+### 3.4. Full documentation pass
 
-Enforce all rules in this skill while editing:
+Use when the user asked for a general documentation upkeep pass or repo-wide
+sync.
 
-- current state only
-- no duplicate content across docs
-- consistent naming and values
-- concise, present-tense, factual wording
-- Markdown formatting rules in this document
+Check the main documentation surface and make focused edits where needed. Avoid
+rewriting accurate sections just for style.
 
-After editing Markdown files, always check formatting drift across all affected
-Markdown files first:
+## 4. Workflow
 
-- Run the bundled formatter from this skill folder:
-  `python <this-skill>/scripts/format_markdown.py --check [flags] <path/to/file.md> [...]`.
-- Resolve the formatter path relative to this skill directory, not the target
-  repository.
-- Do not assume the target repository contains its own
-  `scripts/format_markdown.py`.
-- Use the narrowest formatter flags that match the user's request:
-  - `--headings` = heading numbering only
-  - `--tables` = table formatting only
-  - `--wrap` = prose wrapping only
-  - `--spacing` = spacing cleanup only
-  - `-all` or `--all` = full formatting pass
-- If no specific scope was requested and you are doing a general formatting
-  pass, use `--all`.
-- If multiple files were changed, include all of them in the same check run.
-- In check mode, show the user all reported drift and warnings before taking any
-  write action.
-- This includes every `Would reformat ...` result, every heading-numbering
-  warning, and every wide-table warning produced by the formatter.
-- After showing the full check output to the user, ask whether to run the
-  write-mode formatter pass.
-- When `--headings` or `--all` are used with `--check`, review any warnings
-  about missing or mis-numbered heading numbering before asking the user.
-- When the user approves formatting, run
-  `python <this-skill>/scripts/format_markdown.py [flags] <path/to/file.md> [...]`.
-- The formatter renumbers headings, normalizes spacing, formats Markdown
-  tables, preserves fenced code blocks, and warns when table rows exceed
-  130 characters so they can be compacted.
+### 4.1. Determine exact scope
 
-### 2.4. Keep docs aligned
+Classify the request as one of:
 
-When one document is updated, check whether related documents must also be
-updated to stay aligned.
+- review only
+- specific file update
+- topic-specific sync
+- full documentation pass
+- new document in existing style
+
+If the user names a file or topic, prioritize that area first.
+
+### 4.2. Inspect the source of truth
+
+Before editing, inspect the codebase and config relevant to the request.
+
+Check as relevant:
+
+- public APIs, endpoints, request and response behavior
+- CLI commands, scripts, and examples
+- environment variables
+- config keys, defaults, and supported values
+- feature availability and limitations
+- file names, paths, and module names
+- build, test, and run instructions
+- ownership or topology diagrams if present
+
+Do not preserve claims that the codebase does not support.
+
+### 4.3. Identify drift
+
+Look for:
+
+- outdated behavior descriptions
+- old file paths or command names
+- mismatched env var names
+- duplicate explanations across docs
+- conflicting terminology for the same concept
+- speculative or future-looking wording
+- historical comparisons outside explicitly historical docs
+- stale diagrams or architecture summaries
+
+### 4.4. Edit minimally
+
+Preserve accurate content. Change only what is needed for:
+
+- correctness
+- clarity
+- consistency
+- removal of stale or duplicated content
+
+Avoid stylistic churn that does not improve correctness or maintainability.
+
+### 4.5. Keep related docs aligned
+
+If one change affects another document, update the related document when needed
+to prevent contradictions.
 
 Examples:
 
-- README overview changes may require ARCHITECTURE wording changes
-- renamed env vars may require script README updates
-- changed API behavior may require both usage docs and architecture docs updates
+- renaming an env var in `README.md` may require updates in `docs/CONFIG.md`
+- changing API behavior may require updates in both usage docs and architecture
+  docs
+- renaming a command may require updates in setup, examples, and troubleshooting
 
-### 2.5. Report clearly
+### 4.6. Validate formatting
+
+After editing, validate all changed Markdown files with the bundled formatter.
+
+Use:
+
+`python <this-skill>/scripts/format_markdown.py --check [flags] <file.md> [...]`
+
+Rules:
+
+- Resolve the formatter path relative to this skill directory, not the target
+  repository.
+- Only use the bundled formatter at
+  `<this-skill>/scripts/format_markdown.py`.
+- Do not substitute a repository-local formatter, a third-party formatter, or a
+  different custom script for this validation step unless the user explicitly
+  asks for that tool instead.
+- Use the narrowest flags that enforce this skill's formatting rules.
+- If no narrower scope applies, use `--all`.
+- If multiple files changed, validate all of them in the same run.
+
+Flags:
+
+- `--headings` for heading numbering only
+- `--tables` for Markdown table formatting only
+- `--wrap` for prose wrapping only
+- `--spacing` for spacing cleanup only
+- `--all` for a full formatting pass
+
+Behavior:
+
+- In review-only mode, report formatter drift but do not write changes.
+- In edit modes, run `--check` first.
+- Show the user all formatter warnings and drift before any write action.
+- When `--headings` or `--all` are used with `--check`, review any warnings
+  about missing or mis-numbered heading numbering before asking the user.
+- Ask the user before running any write-mode formatter pass.
+- If drift is found in files already within scope and the user approves, run
+  the formatter in write mode on those files before finishing the task.
+- If formatter drift would cause broad unrelated churn, report it and limit
+  write-mode formatting to the files already in scope.
+
+Write mode:
+
+`python <this-skill>/scripts/format_markdown.py [flags] <file.md> [...]`
+
+### 4.7. Final report
 
 At the end, report:
 
+- which files were reviewed
 - which files were changed
 - what was corrected
 - any important inconsistencies found
+- any related files left unchanged due to scope limits
 - anything not changed because the codebase did not support it
 
 Use concrete summaries such as:
 
-- Removed outdated version references from `docs/ARCHITECTURE.md`
+- Removed outdated command examples from `README.md`
 - Updated env var naming to `CLOUDFLARE_API_TOKEN` across docs
-- Corrected API behavior description to match current implementation
+- Corrected API behavior in `docs/API.md` to match current implementation
+- Noted stale references in `docs/DEPLOYMENT.md` but left them unchanged because
+  they were outside the requested scope
 
-## 3. Invocation
+## 5. Documentation rules
 
-This skill should be used for requests like:
+### 5.1. General writing rules
 
-- "Do a documentation upkeep pass"
-- "Sync docs with the codebase"
-- "Enforce documentation rules on ARCHITECTURE"
-- "Update README to match the current project behavior"
-- "Review docs for outdated or duplicated content"
-- "Create a new doc in the existing documentation style"
+Use:
 
-Do not use this skill for:
+- present tense
+- concise, factual wording
+- repo terminology and actual names from the codebase
+- links to canonical docs instead of repeating detailed explanations
+- only commands, paths, values, fields, and examples verified from the
+  codebase
 
-- roadmap or future-plans documents
-- speculative design writing
-- release-note or changelog narration
-- historical comparisons, migration stories, or retrospectives
-- non-Markdown writing tasks unless the user explicitly wants the same rules
-  applied there
+Prefer:
 
-## 4. Documentation rules
+- short paragraphs
+- lists for scanability
+- explicit file names, commands, and values when verified
 
-When creating or editing documentation, enforce these rules.
+Avoid:
 
-### 4.1. Formatting
+- speculative statements
+- marketing language
+- historical narration
+- TODO-style prose in user-facing docs unless explicitly requested
+- duplicate explanations across multiple files
+
+### 5.2. Current state only
+
+Except for `CHANGELOG.md` and clearly archived or historical documents:
+
+- describe only what exists now
+- remove outdated content
+- remove completed TODO notes
+- remove future-looking statements unless the user explicitly asked for a
+  roadmap or proposal
+
+### 5.3. No past or version references
+
+Outside `CHANGELOG.md` and explicitly historical documents:
+
+- do not use version tags in prose
+- do not compare current behavior to previous behavior
+- do not describe changes in before/after form
+- state current behavior only
+
+Allowed exception:
+
+- `CHANGELOG.md` may retain release-history structure and version headers
+
+### 5.4. No duplicate content
+
+Maintain a single source of truth.
+
+Default content boundaries:
+
+- `README.md` = overview, setup, basic usage, doc navigation
+- architecture docs = current structure, responsibilities, system behavior
+- config docs = configuration reference and operational details
+- API docs = interface contract and usage
+- `CHANGELOG.md` = release history
+
+Rules:
+
+- do not repeat the same detailed explanation in multiple docs
+- keep brief mentions short and link to the canonical document
+- do not add self-links such as a README linking to itself
+- remove duplicated resolved-decision or acceptance-criteria content unless the
+  user explicitly wants it preserved
+
+### 5.5. Consistency
+
+Keep names, values, and wording aligned across docs.
+
+- use the same env var names everywhere
+- use the same file names and paths everywhere
+- use the same terminology for the same concept everywhere
+- do not hardcode conflicting values in multiple places
+- when exact values come from code or config, match them exactly
+- where values are configurable, describe them as configurable instead of
+  copying possibly divergent values into multiple docs
+
+### 5.6. Sensitive information
+
+Do not document secrets or sensitive operational values.
+
+- do not include API keys, passwords, tokens, private certificates, connection
+  strings with credentials, or other secret material in docs
+- do not copy real secret values from `.env`, config files, CI settings, or
+  deployment systems into Markdown
+- when documentation needs an example, use placeholders such as
+  `<API_KEY>` or `your-token-here`
+- if the repository already contains sensitive values in docs, remove or
+  redact them when the task is in scope and mention the issue in the final
+  report
+
+### 5.7. Formatting
+
+Enforce these Markdown syntax rules in all edited or newly created Markdown
+files unless the user explicitly requests otherwise:
 
 - Use dashes (`-`) for bullet points.
 - Wrap normal prose to about 80-85 characters per line.
@@ -156,7 +342,14 @@ When creating or editing documentation, enforce these rules.
 - Prefer lists over long comma-separated prose.
 - Do not use `1)` or `2)` heading styles.
 
-#### 4.1.1. Headings
+### 5.8. Headings
+
+Enforce numbered headings in all newly created Markdown files and in edited
+Markdown files where headings are added, removed, moved, or already numbered,
+unless the file is explicitly frozen or the user explicitly requests a
+different style.
+
+Rules:
 
 - The first heading (`#`) is the document title and is not numbered.
 - Use numbered headings after the title.
@@ -164,8 +357,9 @@ When creating or editing documentation, enforce these rules.
   - `## 1. Heading`
   - `### 1.1. Subheading`
   - `#### 1.1.1. Sub-subheading`
-- When inserting or removing sections, renumber affected headings so the
-  numbering remains correct.
+- When inserting, removing, or moving sections, renumber affected headings so
+  the numbering remains correct.
+- Do not use `1)` or `2)` heading styles.
 
 Examples:
 
@@ -174,106 +368,70 @@ Examples:
 - `### 1.1. Windows installation`
 - `#### 1.1.1. Quick installation fix`
 
-#### 4.1.2. Tables
+### 5.9. Tables
 
-Use tables when they improve readability over lists.
+Use tables only when they improve readability.
 
-Table rules:
+Use tables for:
 
-- Keep tables compact.
-- Use tables for comparisons, field references, or structured matrices.
-- Do not use tables for long narrative text.
-- If a table becomes wide or hard to read in raw Markdown, prefer a list with
-  sub-bullets instead.
-- Keep wording in table cells short and factual.
+- comparisons
+- field references
+- option matrices
+- compact command or config summaries
 
-#### 4.1.3. Diagrams
+Avoid tables for long narrative text.
 
-Use simple text/block diagrams when they help explain system shape or ownership.
+If a table becomes too wide or awkward in raw Markdown, convert it to a list.
 
-Diagram rules:
+Keep table cells short and factual.
 
-- Preserve existing system topology or block diagrams when they are still
-  useful.
-- If a diagram is stale, update it to match the current codebase instead of
-  replacing it with bullets by default.
-- If a diagram has become noisy or misleading, simplify it rather than removing
-  diagrams from the document category entirely.
+### 5.10. Diagrams
 
-### 4.2. Current state only
+Preserve useful diagrams when they still reflect the codebase.
 
-Except for `CHANGELOG.md` and clearly archived or frozen documents:
+If a diagram is stale:
 
-- Describe only what exists today.
-- Remove outdated content.
-- Remove completed TODO-style notes.
-- Remove speculative or future-looking statements unless the user explicitly
-  asks for a roadmap or proposal document.
+- update it to match the current structure, or
+- simplify it if the existing detail is noisy or misleading
 
-### 4.3. No past or version references
+Do not remove a useful diagram just to replace it with prose by default.
 
-Outside `CHANGELOG.md` and explicitly historical documents:
+### 5.11. Behavior when uncertain
 
-- Do not use version tags in prose such as `(v1.2)`, `(v1.4.0)`, or
-  "since v1.4.4".
-- Do not compare current behavior to previous behavior.
-- Do not describe improvements in before/after form.
-- State current behavior only.
+- prefer shorter, factual wording
+- prefer removing questionable claims over preserving them
+- if the codebase does not confirm a claim, do not state it as fact
+- if the user explicitly asks for a style that conflicts with these rules,
+  follow the user for that task while keeping the rest of the docs consistent
 
-Allowed exception:
+## 6. Invocation examples
 
-- `CHANGELOG.md` may keep version headers and release-history wording.
+Use this skill for requests like:
 
-### 4.4. No duplicate content
+- Do a documentation upkeep pass
+- Sync docs with the codebase
+- Review docs for outdated or duplicated content
+- Update README to match the current project behavior
+- Enforce documentation standards on `docs/ARCHITECTURE.md`
+- Create a new doc that matches the existing documentation style
 
-Maintain a single source of truth.
+Do not use this skill for:
 
-Content boundaries:
+- roadmap or future-plans documents
+- speculative design writing
+- migration narratives or retrospectives
+- release-note narration unless explicitly requested
+- historical comparisons unless explicitly requested
 
-- `README.md` = overview, setup, usage, navigation
-- `docs/ARCHITECTURE.md` = current design, structure, behavior
-- `CHANGELOG.md` = release history
-- other docs = topic-specific operational or technical detail
-
-Rules:
-
-- Do not repeat the same detailed explanation across multiple docs.
-- If a document only needs a brief mention of something explained elsewhere,
-  keep the mention short and link to the source document.
-- Do not keep resolved-decision lists or acceptance-criteria lists that repeat
-  changelog content.
-- Do not add self-links such as a README linking to itself.
-- Cross-link other relevant docs when useful.
-
-### 4.5. Consistency
-
-Keep names, values, and wording aligned across docs.
-
-- Use the same env var names everywhere.
-- Use the same file names and paths everywhere.
-- Use the same terminology for the same concept everywhere.
-- Do not hardcode conflicting values in multiple places.
-- If one source defines the exact value, other docs should either reference that
-  source or describe the value as configurable when appropriate.
-- When one document mirrors another format or wording, keep them aligned unless
-  there is a clear reason not to.
-
-### 4.6. Behavior when uncertain
-
-- Prefer shorter, present-tense, factual statements.
-- Prefer removing questionable text over keeping speculative text.
-- If the codebase does not confirm a claim, do not state it as fact.
-- If a user request conflicts with these rules, follow the user's request only
-  for that task and keep the rest of the documentation consistent.
-
-## 5. Editing standard
+## 7. Editing standard
 
 When editing documentation:
 
-- preserve useful existing content where accurate
-- rewrite only as much as needed for correctness, clarity, and consistency
-- avoid unnecessary stylistic churn
-- keep the documentation easy to scan
-- update useful topology or block diagrams when they exist and still add value
-- prefer simplifying diagrams over removing them when the big picture still
-  matters
+- preserve useful existing content when accurate
+- rewrite only as much as needed
+- avoid unnecessary repo-wide style churn
+- prefer correctness over comprehensiveness
+- prefer canonical linking over repeated explanation
+- keep the result easy to scan and maintain
+- update useful topology or ownership diagrams when they still add value
+- mention out-of-scope drift in the final report instead of silently ignoring it
