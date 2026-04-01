@@ -17,6 +17,9 @@ from doc_support import (
     issue,
     load_docs_config,
     normalize_rel_path,
+    object_list,
+    string_dict,
+    string_list,
 )
 
 
@@ -33,17 +36,24 @@ def run(
     issues = list(config_issues)
     suggestions: list[dict[str, object]] = []
     doc_topic_suggestions: list[dict[str, object]] = []
-    docs_entries = [entry for entry in config.get("docs", []) if isinstance(entry, dict)]
-    topic_map = {str(key): normalize_rel_path(value) for key, value in dict(config.get("topic_map", {})).items()}
-    topic_registry = set(str(item) for item in config.get("topics", []) if isinstance(item, str))
+    docs_entries = object_list(config.get("docs"))
+    topic_map = {
+        key: normalize_rel_path(value)
+        for key, value in string_dict(config.get("topic_map")).items()
+    }
+    topic_registry = set(string_list(config.get("topics")))
 
     canonical_owners: dict[str, list[str]] = {}
     declared_topics: set[str] = set()
 
     for entry in docs_entries:
-        path = normalize_rel_path(entry["path"])
-        topics = [str(item) for item in entry.get("topics", [])]
-        canonical_topics = [str(item) for item in entry.get("canonical_topics", [])]
+        path_value = entry.get("path")
+        if not isinstance(path_value, str):
+            continue
+
+        path = normalize_rel_path(path_value)
+        topics = string_list(entry.get("topics"))
+        canonical_topics = string_list(entry.get("canonical_topics"))
         file_path = root / path
         inferred: list[str] = []
 

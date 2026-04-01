@@ -1,17 +1,46 @@
 from __future__ import annotations
 
+import importlib.util
 import io
 import sys
 import unittest
 from pathlib import Path
+from typing import Protocol, cast
 from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS_DIR = ROOT / "scripts"
-sys.path.insert(0, str(SCRIPTS_DIR))
+SCRIPTS_DIR = ROOT / "subskills" / "documentation-formatting" / "scripts"
 
-import format_markdown as formatter
+
+class FormatterModule(Protocol):
+    ALL_FIXES: set[str]
+
+    def format_headings(self, text: str) -> str: ...
+
+    def format_markdown(self, text: str, fixes: set[str] | None = None) -> str: ...
+
+    def main(self) -> int: ...
+
+
+def load_formatter() -> FormatterModule:
+    spec = importlib.util.spec_from_file_location(
+        "format_markdown",
+        SCRIPTS_DIR / "format_markdown.py",
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError("Could not load format_markdown.py")
+
+    module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.pop(0)
+    return cast(FormatterModule, module)
+
+
+formatter = load_formatter()
 
 
 class FormatMarkdownHeadingsTests(unittest.TestCase):

@@ -152,7 +152,8 @@ topic ownership, frozen-doc detection, heading checks, line-wrap checks, and
 Markdown link checks.
 
 If `docs/docs-config.json` is missing and the task is in scope, create it with
-`index_docs.py --root <target-repo> --write-config` before continuing.
+`subskills/documentation-topology/scripts/index_docs.py --root <target-repo> --write-config`
+before continuing.
 
 ### 4.3. Inspect the source of truth
 
@@ -214,13 +215,13 @@ manual scanning and improve consistency.
 
 Preferred scripts:
 
-- `index_docs.py`
-- `build_topic_map.py`
-- `create_topic.py`
-- `check_frozen_docs.py`
-- `check_heading_style.py`
-- `check_line_wrap.py`
-- `check_doc_links.py`
+- `subskills/documentation-topology/scripts/index_docs.py`
+- `subskills/documentation-topology/scripts/build_topic_map.py`
+- `subskills/documentation-topology/scripts/create_topic.py`
+- `subskills/documentation-topology/scripts/check_frozen_docs.py`
+- `subskills/documentation-formatting/scripts/check_heading_style.py`
+- `subskills/documentation-formatting/scripts/check_line_wrap.py`
+- `subskills/documentation-formatting/scripts/check_doc_links.py`
 
 Script rules:
 
@@ -233,14 +234,14 @@ Script rules:
   current working directory
 - prefer script output over manual inference for topology, frozen status,
   heading style, wrap issues, and link validity
-- use `index_docs.py --json --root <target-repo> --write-config` to bootstrap
-  `docs/docs-config.json` when it does not exist
-- use `build_topic_map.py --json --root <target-repo> --suggest-topics` when
-  reviewing or expanding per-document topic lists so the agent can see
+- use `python <this-skill>/subskills/documentation-topology/scripts/index_docs.py --json --root <target-repo> --write-config`
+  to bootstrap `docs/docs-config.json` when it does not exist
+- use `python <this-skill>/subskills/documentation-topology/scripts/build_topic_map.py --json --root <target-repo> --suggest-topics`
+  when reviewing or expanding per-document topic lists so the agent can see
   candidate topics inferred from filenames and headings
-- use `create_topic.py --json --root <target-repo> <topic>` to register new
-  topics explicitly in the config after the user or the agent has decided they
-  belong in the documentation topology
+- use `python <this-skill>/subskills/documentation-topology/scripts/create_topic.py --json --root <target-repo> <topic>`
+  to register new topics explicitly in the config after the user or the agent
+  has decided they belong in the documentation topology
 - summarize relevant script findings in the final report
 
 ### 4.8. Validate formatting
@@ -249,14 +250,14 @@ After editing, validate all changed Markdown files with the bundled formatter.
 
 Use:
 
-`python <this-skill>/scripts/format_markdown.py --check [flags] <file.md> [...]`
+`python <this-skill>/subskills/documentation-formatting/scripts/format_markdown.py --check [flags] <file.md> [...]`
 
 Rules:
 
 - Resolve the formatter path relative to this skill directory, not the target
   repository.
 - Only use the bundled formatter at
-  `<this-skill>/scripts/format_markdown.py`.
+  `<this-skill>/subskills/documentation-formatting/scripts/format_markdown.py`.
 - Do not substitute a repository-local formatter, a third-party formatter, or a
   different custom script for this validation step unless the user explicitly
   asks for that tool instead.
@@ -287,7 +288,7 @@ Behavior:
 
 Write mode:
 
-`python <this-skill>/scripts/format_markdown.py [flags] <file.md> [...]`
+`python <this-skill>/subskills/documentation-formatting/scripts/format_markdown.py [flags] <file.md> [...]`
 
 ### 4.9. Final report
 

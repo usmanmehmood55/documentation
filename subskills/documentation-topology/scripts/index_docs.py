@@ -17,6 +17,7 @@ from doc_support import (
     iter_markdown_surface,
     load_docs_config,
     normalize_rel_path,
+    object_list,
     write_docs_config,
 )
 
@@ -30,18 +31,26 @@ def run(root: Path, config_path: str, write_config: bool = False) -> tuple[dict[
         if write_config:
             config = default_config_for_repo(root)
             written_path = write_docs_config(root, config, config_path)
+            docs_entries = object_list(config.get("docs"))
+            docs_payload = []
+            for entry in docs_entries:
+                path_value = entry.get("path")
+                if not isinstance(path_value, str):
+                    continue
+                status_value = entry.get("status", "active")
+                role_value = entry.get("role", "other")
+                docs_payload.append(
+                    {
+                        "path": path_value,
+                        "status": status_value if isinstance(status_value, str) else "active",
+                        "role": role_value if isinstance(role_value, str) else "other",
+                    }
+                )
             payload = build_payload(
                 "index_docs",
                 [],
                 status="created",
-                docs=[
-                    {
-                        "path": entry["path"],
-                        "status": entry["status"],
-                        "role": entry["role"],
-                    }
-                    for entry in config["docs"]
-                ],
+                docs=docs_payload,
                 written_config=normalize_rel_path(written_path.relative_to(root)),
             )
             return payload, 0
@@ -49,8 +58,12 @@ def run(root: Path, config_path: str, write_config: bool = False) -> tuple[dict[
 
     issues = list(config_issues)
     docs_on_disk = [normalize_rel_path(path.relative_to(root)) for path in iter_markdown_surface(root)]
-    docs_entries = list(config.get("docs", [])) if config else []
-    listed_paths = [normalize_rel_path(entry["path"]) for entry in docs_entries if isinstance(entry, dict) and "path" in entry]
+    docs_entries = object_list(config.get("docs"))
+    listed_paths: list[str] = []
+    for entry in docs_entries:
+        path_value = entry.get("path")
+        if isinstance(path_value, str):
+            listed_paths.append(normalize_rel_path(path_value))
 
     seen: set[str] = set()
     for path in listed_paths:
@@ -89,14 +102,20 @@ def run(root: Path, config_path: str, write_config: bool = False) -> tuple[dict[
             )
 
     docs_payload = []
-    by_path = {normalize_rel_path(entry["path"]): entry for entry in docs_entries if isinstance(entry, dict) and "path" in entry}
+    by_path: dict[str, dict[str, object]] = {}
+    for entry in docs_entries:
+        path_value = entry.get("path")
+        if isinstance(path_value, str):
+            by_path[normalize_rel_path(path_value)] = entry
     for path in sorted(set(docs_on_disk) | set(seen)):
         entry = by_path.get(path, {})
+        status_value = entry.get("status", "active")
+        role_value = entry.get("role", "other")
         docs_payload.append(
             {
                 "path": path,
-                "status": entry.get("status", "active"),
-                "role": entry.get("role", "other"),
+                "status": status_value if isinstance(status_value, str) else "active",
+                "role": role_value if isinstance(role_value, str) else "other",
             }
         )
 

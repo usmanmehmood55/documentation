@@ -16,6 +16,7 @@ from doc_support import (
     issue,
     load_docs_config,
     normalize_rel_path,
+    object_list,
 )
 
 
@@ -26,15 +27,20 @@ def run(root: Path, config_path: str, paths: list[str]) -> tuple[dict[str, objec
         return payload, EXIT_CONFIG_ERROR
 
     issues = list(config_issues)
-    docs_entries = [entry for entry in config.get("docs", []) if isinstance(entry, dict)]
-    by_path = {normalize_rel_path(entry["path"]): entry for entry in docs_entries}
+    docs_entries = object_list(config.get("docs"))
+    by_path: dict[str, dict[str, object]] = {}
+    for entry in docs_entries:
+        path_value = entry.get("path")
+        if isinstance(path_value, str):
+            by_path[normalize_rel_path(path_value)] = entry
 
     for rel_path, entry in by_path.items():
         file_path = root / rel_path
         if not file_path.exists():
             continue
         marker = explicit_frozen_marker(file_path)
-        status = entry.get("status", "active")
+        status_value = entry.get("status", "active")
+        status = status_value if isinstance(status_value, str) else "active"
         if marker is not None and status != marker:
             issues.append(
                 issue(
@@ -50,7 +56,8 @@ def run(root: Path, config_path: str, paths: list[str]) -> tuple[dict[str, objec
         entry = by_path.get(rel_path)
         if entry is None:
             continue
-        status = entry.get("status", "active")
+        status_value = entry.get("status", "active")
+        status = status_value if isinstance(status_value, str) else "active"
         if status in {"frozen", "archived", "generated"}:
             issues.append(
                 issue(

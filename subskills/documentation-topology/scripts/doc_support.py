@@ -31,6 +31,112 @@ FENCE_RE = re.compile(r"^[ \t]{0,3}(```|~~~)")
 HEADING_RE = re.compile(r"^(?P<indent>[ \t]{0,3})(?P<marks>#{1,6})[ \t]+(?P<text>.+?)\s*$")
 LINK_RE = re.compile(r"(?<!\!)\[[^\]]+\]\(([^)]+)\)")
 HEADING_NUMBER_PREFIX_RE = re.compile(r"^\d+(?:\.\d+)*\.?\s+")
+LOW_SIGNAL_HEADING_TOPICS = {
+    "docs",
+    "purpose",
+    "keys",
+    "root",
+    "models",
+    "engine",
+    "steps",
+    "helpers",
+    "services",
+    "entry-point",
+    "views",
+    "stores",
+    "behavior-notes",
+}
+LOW_SIGNAL_HEADING_SUFFIXES = (
+    "-flow",
+    "-flows",
+    "-responsibilities",
+    "-criteria",
+    "-summary",
+    "-examples",
+)
+ACTION_HEADING_TOKENS = {
+    "check",
+    "confirm",
+    "connect",
+    "entering",
+    "getting",
+    "introduce",
+    "keep",
+    "open",
+    "read",
+    "reading",
+    "reduce",
+    "remove",
+    "retry",
+    "setting",
+    "simplify",
+    "start",
+    "starting",
+    "submit",
+    "validate",
+    "writing",
+}
+DOMAIN_TOPIC_TOKENS = {
+    "api",
+    "architecture",
+    "backend",
+    "base",
+    "bootloader",
+    "browser",
+    "cabinet",
+    "command",
+    "commands",
+    "config",
+    "configuration",
+    "connection",
+    "conventions",
+    "control",
+    "database",
+    "data",
+    "deployment",
+    "device",
+    "docs",
+    "extension",
+    "firmware",
+    "frontend",
+    "getting",
+    "hardware",
+    "identity",
+    "interface",
+    "lookup",
+    "manual",
+    "mode",
+    "modes",
+    "operator",
+    "overview",
+    "ownership",
+    "pass",
+    "plc",
+    "prerequisites",
+    "production",
+    "reflash",
+    "report",
+    "reports",
+    "runtime",
+    "sequence",
+    "serial",
+    "settings",
+    "setup",
+    "sql",
+    "started",
+    "stats",
+    "system",
+    "test",
+    "testing",
+    "topology",
+    "translations",
+    "troubleshooting",
+    "endpoint",
+    "endpoints",
+    "url",
+    "urls",
+    "usage",
+}
 
 
 def issue(
@@ -82,7 +188,13 @@ def dump_payload(payload: dict[str, object], json_mode: bool) -> str:
         return json.dumps(payload, indent=2, sort_keys=False)
 
     lines = [f"{payload['tool']}: {payload['status']}"]
-    for item in payload["issues"]:
+    issues = payload.get("issues", [])
+    if not isinstance(issues, list):
+        issues = []
+
+    for item in issues:
+        if not isinstance(item, dict):
+            continue
         location = item.get("path", "")
         if item.get("line") is not None:
             location = f"{location}:{item['line']}" if location else str(item["line"])
@@ -95,6 +207,28 @@ def dump_payload(payload: dict[str, object], json_mode: bool) -> str:
 
 def exit_code_for_issues(issues: list[dict[str, object]]) -> int:
     return EXIT_ISSUES if issues else EXIT_SUCCESS
+
+
+def object_list(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
+def string_dict(value: object) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, str] = {}
+    for key, item in value.items():
+        if isinstance(key, str) and isinstance(item, str):
+            result[key] = item
+    return result
 
 
 def normalize_rel_path(path: str | Path) -> str:
@@ -397,12 +531,17 @@ def find_markdown_links(text: str) -> list[tuple[int, str]]:
 
 def infer_topics(path: str, headings: list[dict[str, object]]) -> list[str]:
     rel = normalize_rel_path(path)
-    stem = PurePosixPath(rel).stem.lower()
+    pure_rel = PurePosixPath(rel)
+    stem = pure_rel.stem.lower()
     candidates: list[str] = []
 
     if rel == "README.md":
         candidates.extend(["overview", "setup", "usage"])
-    elif stem != "readme":
+    elif stem == "readme":
+        parent_topic = normalize_topic_phrase(pure_rel.parent.name)
+        if parent_topic is not None:
+            candidates.append(parent_topic)
+    else:
         normalized_stem = normalize_topic_phrase(stem.replace("_", " "))
         if normalized_stem is not None:
             candidates.append(normalized_stem)
@@ -413,11 +552,20 @@ def infer_topics(path: str, headings: list[dict[str, object]]) -> list[str]:
             candidates.append(mapped)
 
     for heading in headings:
-        if int(heading["level"]) > 1:
-            normalized_heading = normalize_topic_phrase(str(heading["text"]))
-            if normalized_heading is not None:
+        level_value = heading.get("level")
+        text_value = heading.get("text")
+        if not isinstance(level_value, int) or not isinstance(text_value, str):
+            continue
+
+        if level_value > 1:
+            normalized_heading = normalize_topic_phrase(text_value)
+            if normalized_heading is not None and should_keep_heading_topic(
+                text_value,
+                normalized_heading,
+                level_value,
+            ):
                 candidates.append(normalized_heading)
-        for token in re.split(r"[^a-z0-9]+", str(heading["text"]).lower()):
+        for token in re.split(r"[^a-z0-9]+", text_value.lower()):
             mapped = topic_alias(token)
             if mapped is not None:
                 candidates.append(mapped)
@@ -464,6 +612,32 @@ def normalize_topic_phrase(text: str) -> str | None:
     if not value or len(value) < 2:
         return None
     return value
+
+
+def should_keep_heading_topic(text: str, normalized: str, level: int) -> bool:
+    if level > 3:
+        return False
+
+    raw = text.strip().lower()
+    if any(marker in raw for marker in ("`", ".cs", "/", "\\", "(", ")")):
+        return False
+
+    tokens = normalized.split("-")
+    if len(tokens) > 4:
+        return False
+
+    if normalized in LOW_SIGNAL_HEADING_TOPICS:
+        return False
+    if any(normalized.endswith(suffix) for suffix in LOW_SIGNAL_HEADING_SUFFIXES):
+        return False
+    if any(token.endswith("cs") or token.startswith("dbo") for token in tokens):
+        return False
+    if any(token in {"glog", "glogs"} for token in tokens):
+        return False
+    if tokens and tokens[0] in ACTION_HEADING_TOKENS:
+        return False
+
+    return any(token in DOMAIN_TOPIC_TOKENS for token in tokens)
 
 
 def explicit_frozen_marker(path: Path) -> str | None:

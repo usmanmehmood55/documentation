@@ -14,6 +14,9 @@ from doc_support import (
     issue,
     load_docs_config,
     normalize_rel_path,
+    object_list,
+    string_dict,
+    string_list,
     write_docs_config,
 )
 
@@ -31,16 +34,17 @@ def run(
         return payload, EXIT_CONFIG_ERROR
 
     issues = list(config_issues)
-    registry = list(str(item) for item in config.get("topics", []) if isinstance(item, str))
+    registry = string_list(config.get("topics"))
     registry_set = set(registry)
     created: list[str] = []
-    docs_entries = [entry for entry in config.get("docs", []) if isinstance(entry, dict)]
+    docs_entries = object_list(config.get("docs"))
 
-    target_entry = None
+    target_entry: dict[str, object] | None = None
     normalized_path = normalize_rel_path(path) if path else None
     if normalized_path is not None:
         for entry in docs_entries:
-            if normalize_rel_path(entry["path"]) == normalized_path:
+            path_value = entry.get("path")
+            if isinstance(path_value, str) and normalize_rel_path(path_value) == normalized_path:
                 target_entry = entry
                 break
         if target_entry is None:
@@ -65,16 +69,18 @@ def run(
             created.append(topic)
 
         if target_entry is not None:
-            target_topics = [str(item) for item in target_entry.get("topics", [])]
+            target_topics = string_list(target_entry.get("topics"))
             if topic not in target_topics:
                 target_topics.append(topic)
                 target_entry["topics"] = target_topics
             if canonical:
-                canonical_topics = [str(item) for item in target_entry.get("canonical_topics", [])]
+                if normalized_path is None:
+                    continue
+                canonical_topics = string_list(target_entry.get("canonical_topics"))
                 if topic not in canonical_topics:
                     canonical_topics.append(topic)
                     target_entry["canonical_topics"] = canonical_topics
-                topic_map = dict(config.get("topic_map", {}))
+                topic_map = string_dict(config.get("topic_map"))
                 topic_map[topic] = normalized_path
                 config["topic_map"] = topic_map
 

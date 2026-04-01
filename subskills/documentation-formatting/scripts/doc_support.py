@@ -82,7 +82,13 @@ def dump_payload(payload: dict[str, object], json_mode: bool) -> str:
         return json.dumps(payload, indent=2, sort_keys=False)
 
     lines = [f"{payload['tool']}: {payload['status']}"]
-    for item in payload["issues"]:
+    issues = payload.get("issues", [])
+    if not isinstance(issues, list):
+        issues = []
+
+    for item in issues:
+        if not isinstance(item, dict):
+            continue
         location = item.get("path", "")
         if item.get("line") is not None:
             location = f"{location}:{item['line']}" if location else str(item["line"])
@@ -413,11 +419,16 @@ def infer_topics(path: str, headings: list[dict[str, object]]) -> list[str]:
             candidates.append(mapped)
 
     for heading in headings:
-        if int(heading["level"]) > 1:
-            normalized_heading = normalize_topic_phrase(str(heading["text"]))
+        level_value = heading.get("level")
+        text_value = heading.get("text")
+        if not isinstance(level_value, int) or not isinstance(text_value, str):
+            continue
+
+        if level_value > 1:
+            normalized_heading = normalize_topic_phrase(text_value)
             if normalized_heading is not None:
                 candidates.append(normalized_heading)
-        for token in re.split(r"[^a-z0-9]+", str(heading["text"]).lower()):
+        for token in re.split(r"[^a-z0-9]+", text_value.lower()):
             mapped = topic_alias(token)
             if mapped is not None:
                 candidates.append(mapped)
