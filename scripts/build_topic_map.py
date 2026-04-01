@@ -83,18 +83,29 @@ def run(
                         topic=topic,
                     )
                 )
-            if topic not in topic_map:
+
+        for topic in canonical_topics:
+            declared_topics.add(topic)
+            if topic_registry and topic not in topic_registry:
                 issues.append(
                     issue(
                         "warning",
-                        "missing_topic_mapping",
-                        "Topic is declared in docs but missing from topic_map.",
+                        "unregistered_topic",
+                        "Canonical topic is declared in docs but missing from the top-level topics registry.",
                         path=path,
                         topic=topic,
                     )
                 )
-
-        for topic in canonical_topics:
+            if topic not in topics:
+                issues.append(
+                    issue(
+                        "warning",
+                        "canonical_topic_not_declared",
+                        "Canonical topic should also appear in the document's topics list.",
+                        path=path,
+                        topic=topic,
+                    )
+                )
             canonical_owners.setdefault(topic, []).append(path)
 
     for topic, mapped_path in topic_map.items():
@@ -129,22 +140,6 @@ def run(
                     topic=topic,
                     path=owners[0],
                 )
-            )
-
-    for topic in sorted(declared_topics):
-        if topic not in topic_map and topic not in canonical_owners:
-            suggestions.append(
-                {
-                    "topic": topic,
-                    "suggested_path": next(
-                        (
-                            normalize_rel_path(entry["path"])
-                            for entry in docs_entries
-                            if topic in [str(item) for item in entry.get("topics", [])]
-                        ),
-                        "",
-                    ),
-                }
             )
 
     for topic in sorted(topic_registry):

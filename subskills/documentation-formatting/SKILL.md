@@ -57,7 +57,7 @@ Only after the user approves, run:
 
 ## 2. Rules
 
-- Only use the bundled formatter wrapper at `scripts/format_markdown.py`.
+- Only use the bundled formatter at `scripts/format_markdown.py`.
 - Do not substitute repository-local or third-party formatters unless the user
   explicitly asks.
 - Preserve fenced code blocks.
@@ -78,11 +78,12 @@ Exit codes:
 
 ## 4. Bundled scripts
 
-This sub-skill includes local wrappers for:
+This sub-skill includes local bundled scripts:
 
 - `scripts/format_markdown.py`
 - `scripts/check_heading_style.py`
 - `scripts/check_line_wrap.py`
 - `scripts/check_doc_links.py`
+- `scripts/doc_support.py`
 
-Use these local wrappers instead of reaching outside the skill folder.
+Use these local scripts instead of reaching outside the skill folder.

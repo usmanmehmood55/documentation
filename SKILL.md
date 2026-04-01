@@ -152,7 +152,7 @@ topic ownership, frozen-doc detection, heading checks, line-wrap checks, and
 Markdown link checks.
 
 If `docs/docs-config.json` is missing and the task is in scope, create it with
-`index_docs.py --write-config` before continuing.
+`index_docs.py --root <target-repo> --write-config` before continuing.
 
 ### 4.3. Inspect the source of truth
 
@@ -229,16 +229,18 @@ Script rules:
 - treat exit code `1` as issues found
 - treat exit code `2` as config or usage error
 - treat exit code `3` as runtime failure
+- always pass `--root <target-repo>` to topology scripts; do not rely on the
+  current working directory
 - prefer script output over manual inference for topology, frozen status,
   heading style, wrap issues, and link validity
-- use `index_docs.py --write-config` to bootstrap `docs/docs-config.json` when
-  it does not exist
-- use `build_topic_map.py --json --suggest-topics` when reviewing or expanding
-  per-document topic lists so the agent can see candidate topics inferred from
-  filenames and headings
-- use `create_topic.py <topic>` to register new topics explicitly in the config
-  after the user or the agent has decided they belong in the documentation
-  topology
+- use `index_docs.py --json --root <target-repo> --write-config` to bootstrap
+  `docs/docs-config.json` when it does not exist
+- use `build_topic_map.py --json --root <target-repo> --suggest-topics` when
+  reviewing or expanding per-document topic lists so the agent can see
+  candidate topics inferred from filenames and headings
+- use `create_topic.py --json --root <target-repo> <topic>` to register new
+  topics explicitly in the config after the user or the agent has decided they
+  belong in the documentation topology
 - summarize relevant script findings in the final report
 
 ### 4.8. Validate formatting
@@ -399,6 +401,8 @@ When `docs/docs-config.json` exists and the task is in scope:
 - keep each doc's topics aligned with what the document materially covers, not
   just a single filename-derived label
 - keep `topic_map` aligned with canonical topic ownership
+- do not require every topic in `topics` to appear in `topic_map`; shared
+  coverage topics may appear in multiple docs without a single owner
 - do not assign the same canonical topic to multiple docs unless the user
   explicitly wants that ambiguity
 - treat topics as explicit config entries, not as a hardcoded built-in list
@@ -408,6 +412,9 @@ When `docs/docs-config.json` exists and the task is in scope:
 - do not create topics from every heading mechanically; use filenames,
   headings, and document content as evidence for topic candidates, then keep
   only the meaningful stable topics
+- when headings represent stable areas such as API groups, subsystem domains,
+  workflows, or operational sections, include them as topic candidates instead
+  of collapsing the doc to one generic topic
 
 ### 5.7. Sensitive information
 

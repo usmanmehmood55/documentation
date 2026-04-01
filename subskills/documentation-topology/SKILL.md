@@ -24,11 +24,14 @@ asks for topology-only metadata updates to be accompanied by doc edits.
 
 Use `scripts/index_docs.py` first.
 
+Always pass the target repository explicitly with `--root <target-repo>`. Do
+not rely on the current working directory.
+
 - Validate current topology with:
-  `python scripts/index_docs.py --json --check`
+  `python scripts/index_docs.py --json --root <target-repo> --check`
 - If `docs/docs-config.json` is missing and the task is in scope, create it
   with:
-  `python scripts/index_docs.py --json --write-config`
+  `python scripts/index_docs.py --json --root <target-repo> --write-config`
 
 Treat `docs/docs-config.json` as the source of truth for documentation
 topology after it exists.
@@ -37,8 +40,8 @@ topology after it exists.
 
 Use:
 
-- `python scripts/build_topic_map.py --json`
-- `python scripts/build_topic_map.py --json --suggest-topics`
+- `python scripts/build_topic_map.py --json --root <target-repo>`
+- `python scripts/build_topic_map.py --json --root <target-repo> --suggest-topics`
 
 Check for:
 
@@ -63,21 +66,21 @@ Do not invent a hidden built-in topic list.
 
 When a new topic is needed, create it explicitly in the config with:
 
-- `python scripts/create_topic.py --json <topic>`
+- `python scripts/create_topic.py --json --root <target-repo> <topic>`
 
 If the topic should be attached to a document:
 
-- `python scripts/create_topic.py --json --path <doc-path> <topic>`
+- `python scripts/create_topic.py --json --root <target-repo> --path <doc-path> <topic>`
 
 If the topic should also become canonical for that document:
 
-- `python scripts/create_topic.py --json --path <doc-path> --canonical <topic>`
+- `python scripts/create_topic.py --json --root <target-repo> --path <doc-path> --canonical <topic>`
 
 ### 1.4. Check frozen docs
 
 Before editing docs that may be restricted, run:
 
-- `python scripts/check_frozen_docs.py --json <doc-path> [...]`
+- `python scripts/check_frozen_docs.py --json --root <target-repo> <doc-path> [...]`
 
 Do not edit docs marked `frozen`, `archived`, or `generated` unless the user
 explicitly asks.
@@ -89,10 +92,14 @@ explicitly asks.
 - Remove deleted docs from the config.
 - Update status when a doc becomes `frozen`, `archived`, or `generated`.
 - Keep `topic_map` aligned with canonical topic ownership.
+- Do not require every topic in `topics` to appear in `topic_map`; shared
+  coverage topics may appear in multiple docs without one canonical owner.
 - Do not assign the same canonical topic to multiple docs unless the user
   explicitly wants that ambiguity.
 - Do not collapse each document to one topic by default; include all
   meaningful stable topics the doc materially covers.
+- Use heading phrases as topic candidates when they represent stable sections
+  of responsibility, such as API areas or operational domains.
 - Keep topology metadata human-editable and lightweight.
 - Do not store product behavior, API truth, config defaults, or command truth
   in `docs/docs-config.json`.
@@ -110,11 +117,12 @@ Exit codes:
 
 ## 4. Bundled scripts
 
-This sub-skill includes local wrappers for:
+This sub-skill includes local bundled scripts:
 
 - `scripts/index_docs.py`
 - `scripts/build_topic_map.py`
 - `scripts/create_topic.py`
 - `scripts/check_frozen_docs.py`
+- `scripts/doc_support.py`
 
-Use these local wrappers instead of reaching outside the skill folder.
+Use these local scripts instead of reaching outside the skill folder.

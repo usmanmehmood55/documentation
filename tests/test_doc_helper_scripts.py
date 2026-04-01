@@ -107,12 +107,17 @@ class DocHelperScriptsTests(unittest.TestCase):
         self.assertEqual(payload["status"], "config_error")
         self.assertTrue(any(item["type"] == "invalid_config_json" for item in payload["issues"]))
 
-    def test_build_topic_map_reports_missing_topic_mapping(self) -> None:
-        result = self.run_script("build_topic_map.py")
+    def test_build_topic_map_reports_missing_canonical_topic_mapping(self) -> None:
+        config_path = CLEAN_ROOT / "docs" / "docs-config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["topic_map"].pop("architecture")
+        self.patch_file(config_path, json.dumps(config, indent=2) + "\n")
+
+        result = self.run_script("build_topic_map.py", root=CLEAN_ROOT)
         payload = self.load_payload(result, "build_topic_map")
 
         self.assertEqual(result.returncode, 1)
-        self.assertTrue(any(item["type"] == "missing_topic_mapping" for item in payload["issues"]))
+        self.assertTrue(any(item["type"] == "canonical_topic_not_mapped" for item in payload["issues"]))
 
     def test_build_topic_map_reports_unregistered_topic(self) -> None:
         config_path = CLEAN_ROOT / "docs" / "docs-config.json"
@@ -132,6 +137,21 @@ class DocHelperScriptsTests(unittest.TestCase):
         payload = self.load_payload(result, "build_topic_map")
 
         self.assertEqual(result.returncode, 0)
+        self.assertEqual(payload["issues"], [])
+
+    def test_build_topic_map_allows_shared_topics_without_topic_map_owners(self) -> None:
+        config_path = CLEAN_ROOT / "docs" / "docs-config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["topics"] = ["overview", "architecture", "system-design", "reference", "api", "backend"]
+        config["docs"][1]["topics"].extend(["api", "backend"])
+        config["docs"][2]["topics"].append("api")
+        self.patch_file(config_path, json.dumps(config, indent=2) + "\n")
+
+        result = self.run_script("build_topic_map.py", root=CLEAN_ROOT)
+        payload = self.load_payload(result, "build_topic_map")
+
+        self.assertEqual(result.returncode, 0)
+        self.assertFalse(any(item["type"] == "canonical_topic_not_mapped" for item in payload["issues"]))
         self.assertEqual(payload["issues"], [])
 
     def test_build_topic_map_can_suggest_multiple_topics_per_doc(self) -> None:
@@ -162,6 +182,71 @@ class DocHelperScriptsTests(unittest.TestCase):
         by_path = {item["path"]: item for item in payload["doc_topic_suggestions"]}
         self.assertNotIn("clean", by_path["README.md"]["suggested_topics"])
         self.assertNotIn("repo", by_path["README.md"]["suggested_topics"])
+
+    def test_build_topic_map_suggests_heading_topics_for_api_docs(self) -> None:
+        config_path = CLEAN_ROOT / "docs" / "docs-config.json"
+        api_path = CLEAN_ROOT / "docs" / "HTTP_API.md"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["docs"].append(
+            {
+                "path": "docs/HTTP_API.md",
+                "status": "active",
+                "role": "api",
+                "topics": [],
+                "canonical_topics": [],
+            }
+        )
+        self.patch_file(config_path, json.dumps(config, indent=2) + "\n")
+        self.patch_file(
+            api_path,
+            "\n".join(
+                [
+                    "# SgwProdTest HTTP API",
+                    "",
+                    "## 1. Base URLs",
+                    "",
+                    "## 2. Conventions",
+                    "",
+                    "## 3. Endpoints",
+                    "",
+                    "### 3.1. Health and system",
+                    "",
+                    "### 3.2. Connection",
+                    "",
+                    "### 3.3. Firmware assets",
+                    "",
+                    "### 3.4. Sequence control",
+                    "",
+                    "### 3.5. Device stats",
+                    "",
+                    "### 3.6. Settings",
+                    "",
+                    "### 3.7. Reports",
+                    "",
+                    "### 3.8. Translations",
+                    "",
+                    "## 4. Request Examples",
+                    "",
+                    "### 4.1. Connect",
+                    "",
+                ]
+            )
+            + "\n",
+        )
+
+        result = self.run_script("build_topic_map.py", "--suggest-topics", root=CLEAN_ROOT)
+        payload = self.load_payload(result, "build_topic_map")
+
+        by_path = {item["path"]: item for item in payload["doc_topic_suggestions"]}
+        suggestions = by_path["docs/HTTP_API.md"]["suggested_topics"]
+        self.assertIn("http-api", suggestions)
+        self.assertIn("base-urls", suggestions)
+        self.assertIn("conventions", suggestions)
+        self.assertIn("endpoints", suggestions)
+        self.assertIn("health-and-system", suggestions)
+        self.assertIn("firmware-assets", suggestions)
+        self.assertIn("sequence-control", suggestions)
+        self.assertIn("device-stats", suggestions)
 
     def test_build_topic_map_invalid_config_returns_two(self) -> None:
         result = self.run_script("build_topic_map.py", root=INVALID_CONFIG_ROOT)
