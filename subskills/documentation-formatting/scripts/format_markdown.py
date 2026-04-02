@@ -16,6 +16,7 @@ HEADING_RE = re.compile(
 FENCE_RE          = re.compile(r"^[ \t]{0,3}(```|~~~)")
 NUMBER_PREFIX_RE  = re.compile(r"^\d+(?:\.\d+)*\.?[ \t]+")
 ORDERED_LIST_RE   = re.compile(r"^[ \t]{0,3}\d+[.)][ \t]+")
+BARE_URL_RE       = re.compile(r"(?<![\[(])(?P<url>https?://[^\s<>()]+/?)(?!\))")
 WRAP_WIDTH        = 80
 WRAP_THRESHOLD    = 85
 TABLE_WIDTH_LIMIT = 130
@@ -312,6 +313,17 @@ def normalize_spacing(lines: list[str]) -> list[str]:
             output.append(line)
             continue
 
+        if is_list_item(line):
+            previous_output = output[-1] if output else None
+            if previous_output is not None and previous_output != "" and not is_list_item(previous_output):
+                output.append("")
+            output.append(linkify_bare_urls(line))
+
+            next_line = next_nonblank_line(lines, index + 1)
+            if next_line is not None and not is_list_item(next_line):
+                output.append("")
+            continue
+
         if is_heading(line):
             if output and output[-1] != "":
                 output.append("")
@@ -323,7 +335,7 @@ def normalize_spacing(lines: list[str]) -> list[str]:
                 output.append("")
             continue
 
-        output.append(line)
+        output.append(linkify_bare_urls(line))
 
     return collapse_consecutive_blank_lines(output)
 
@@ -508,11 +520,11 @@ def should_wrap_line(
         return False
     if line.startswith("    ") or line.startswith("\t"):
         return False
-    if line.lstrip().startswith(("- ", "* ", "+ ", "> ")):
+    if line.lstrip().startswith(("> ")):
         return False
     if is_table_line(line):
         return False
-    if ORDERED_LIST_RE.match(line):
+    if is_list_item(line):
         return False
     if " " not in line.strip():
         return False
@@ -534,11 +546,11 @@ def is_plain_prose_line(line: str | None) -> bool:
         return False
     if line.startswith("    ") or line.startswith("\t"):
         return False
-    if line.lstrip().startswith(("- ", "* ", "+ ", "> ")):
+    if line.lstrip().startswith(("> ")):
         return False
     if is_table_line(line):
         return False
-    if ORDERED_LIST_RE.match(line):
+    if is_list_item(line):
         return False
     return True
 
@@ -546,6 +558,19 @@ def is_plain_prose_line(line: str | None) -> bool:
 def is_table_line(line: str) -> bool:
     stripped = line.lstrip()
     return stripped.startswith("|")
+
+
+def is_list_item(line: str) -> bool:
+    stripped = line.lstrip()
+    return stripped.startswith(("- ", "* ", "+ ")) or ORDERED_LIST_RE.match(line) is not None
+
+
+def linkify_bare_urls(line: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        url = match.group("url")
+        return f"[{url}]({url})"
+
+    return BARE_URL_RE.sub(replace, line)
 
 
 def determine_enabled_fixes(args: argparse.Namespace) -> set[str]:

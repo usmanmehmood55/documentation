@@ -71,7 +71,11 @@ Text
 
 ##### Sub sub sub heading B.B.B
 
-Text
+There should be an empty line before a list.
+- Item 1
+- Item 2
+- Bare URLs should be adjusted https://usman-embedded.com/
+There should be an empty line after a list.
 
 ## Next Section
 
