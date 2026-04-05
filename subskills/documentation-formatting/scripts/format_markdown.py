@@ -16,9 +16,15 @@ HEADING_RE = re.compile(
 FENCE_RE          = re.compile(r"^[ \t]{0,3}(```|~~~)")
 NUMBER_PREFIX_RE  = re.compile(r"^\d+(?:\.\d+)*\.?[ \t]+")
 ORDERED_LIST_RE   = re.compile(r"^[ \t]{0,3}\d+[.)][ \t]+")
+# First line of a list item: base indent (0–3), marker, remainder.
+UNORDERED_ITEM_RE = re.compile(r"^([ \t]{0,3})([-*+] )(.*)$")
+ORDERED_ITEM_RE   = re.compile(r"^([ \t]{0,3})(\d+[.)]\s+)(.*)$")
 BARE_URL_RE       = re.compile(r"(?<![\[(])(?P<url>https?://[^\s<>()]+/?)(?!\))")
 WRAP_WIDTH        = 80
 WRAP_THRESHOLD    = 85
+# Single-line list items longer than WRAP_THRESHOLD but under this are left as-is so
+# linkified URLs do not reflow differently on a second format pass.
+LIST_ITEM_SINGLE_LINE_MAX = 100
 TABLE_WIDTH_LIMIT = 130
 ALL_FIXES = {"headings", "tables", "wrap", "spacing"}
 
@@ -189,36 +195,125 @@ def find_heading_numbering_warnings(text: str) -> list[str]:
     return warnings
 
 
+def match_list_item_parts(line: str) -> tuple[str, str, str] | None:
+    """Return (base_indent, marker, content) for a list item line, or None."""
+    match = UNORDERED_ITEM_RE.match(line)
+    if match:
+        return match.group(1), match.group(2), match.group(3)
+    match = ORDERED_ITEM_RE.match(line)
+    if match:
+        return match.group(1), match.group(2), match.group(3)
+    return None
+
+
+def is_list_continuation_line(line: str) -> bool:
+    """True if this line continues a preceding list item (indented wrap line)."""
+    if not line:
+        return False
+    if line.startswith("    ") or line.startswith("\t"):
+        return False
+    if is_heading(line) or is_table_line(line):
+        return False
+    if FENCE_RE.match(line):
+        return False
+    if is_list_item(line):
+        return False
+    return bool(re.match(r"^ {2,}\S", line))
+
+
+def collect_list_item_block(lines: list[str], start: int) -> list[str]:
+    block = [lines[start]]
+    index = start + 1
+    while index < len(lines):
+        next_line = lines[index]
+        if next_line == "":
+            break
+        if is_list_item(next_line):
+            break
+        if is_list_continuation_line(next_line):
+            block.append(next_line)
+            index += 1
+            continue
+        break
+    return block
+
+
+def wrap_list_item_block(block: list[str]) -> list[str]:
+    parts = match_list_item_parts(block[0])
+    if parts is None:
+        return block
+    base, marker, first_content = parts
+
+    if len(block) == 1:
+        full = block[0].rstrip()
+        if len(full) <= LIST_ITEM_SINGLE_LINE_MAX:
+            return [full]
+
+    chunks = [first_content.rstrip()]
+    for continuation in block[1:]:
+        chunks.append(continuation.lstrip(" \t").rstrip())
+    paragraph = " ".join(chunk for chunk in chunks if chunk)
+    follow_indent = base + (" " * len(marker))
+    # Use the wider threshold so list lines match "about 80–85" (see WRAP_THRESHOLD).
+    wrapper = textwrap.TextWrapper(
+        width=WRAP_THRESHOLD,
+        initial_indent=base + marker,
+        subsequent_indent=follow_indent,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    wrapped = wrapper.wrap(paragraph)
+    return wrapped if wrapped else [base + marker]
+
+
 def wrap_prose_lines(lines: list[str]) -> list[str]:
     output: list[str] = []
     in_front_matter = False
     front_matter_checked = False
     in_fence = False
+    index = 0
 
-    for index, line in enumerate(lines):
+    while index < len(lines):
+        line = lines[index]
+
         if not front_matter_checked:
             front_matter_checked = True
             if line == "---":
                 in_front_matter = True
                 output.append(line)
+                index += 1
                 continue
 
         if in_front_matter:
             output.append(line)
             if index != 0 and line == "---":
                 in_front_matter = False
+            index += 1
             continue
 
         if FENCE_RE.match(line):
             in_fence = not in_fence
             output.append(line)
+            index += 1
+            continue
+
+        if in_fence:
+            output.append(line)
+            index += 1
+            continue
+
+        if is_list_item(line):
+            block = collect_list_item_block(lines, index)
+            output.extend(wrap_list_item_block(block))
+            index += len(block)
             continue
 
         previous_line = lines[index - 1] if index > 0 else None
         next_line = lines[index + 1] if index + 1 < len(lines) else None
 
-        if in_fence or not should_wrap_line(line, previous_line, next_line):
+        if not should_wrap_line(line, previous_line, next_line):
             output.append(line)
+            index += 1
             continue
 
         wrapped = textwrap.wrap(
@@ -228,6 +323,7 @@ def wrap_prose_lines(lines: list[str]) -> list[str]:
             break_on_hyphens=False,
         )
         output.extend(wrapped or [""])
+        index += 1
 
     return output
 
@@ -315,12 +411,21 @@ def normalize_spacing(lines: list[str]) -> list[str]:
 
         if is_list_item(line):
             previous_output = output[-1] if output else None
-            if previous_output is not None and previous_output != "" and not is_list_item(previous_output):
+            if (
+                previous_output is not None
+                and previous_output != ""
+                and not is_list_item(previous_output)
+                and not is_list_continuation_line(previous_output)
+            ):
                 output.append("")
             output.append(linkify_bare_urls(line))
 
             next_line = next_nonblank_line(lines, index + 1)
-            if next_line is not None and not is_list_item(next_line):
+            if (
+                next_line is not None
+                and not is_list_item(next_line)
+                and not is_list_continuation_line(next_line)
+            ):
                 output.append("")
             continue
 

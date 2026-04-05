@@ -72,8 +72,9 @@ Text
 ##### Sub sub sub heading B.B.B
 
 There should be an empty line before a list.
-- Item 1
-- Item 2
+- Item 1. This is a multiline list item. It was capped at 80 characters and wrapped
+  around appropriately, keeping it spaced appropriately and within the list.
+- Item 2. This is also a multiline list item, but it wasn't wrapped around properly, the formatter has to do it.
 - Bare URLs should be adjusted https://usman-embedded.com/
 There should be an empty line after a list.
 
