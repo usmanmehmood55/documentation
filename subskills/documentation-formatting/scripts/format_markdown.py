@@ -409,6 +409,11 @@ def normalize_spacing(lines: list[str]) -> list[str]:
             output.append(line)
             continue
 
+        if is_separator_line(line):
+            if output and output[-1] != "":
+                output.append("")
+            continue
+
         if is_list_item(line):
             previous_output = output[-1] if output else None
             if (
@@ -663,6 +668,10 @@ def is_plain_prose_line(line: str | None) -> bool:
 def is_table_line(line: str) -> bool:
     stripped = line.lstrip()
     return stripped.startswith("|")
+
+
+def is_separator_line(line: str) -> bool:
+    return line.strip() == "---"
 
 
 def is_list_item(line: str) -> bool:

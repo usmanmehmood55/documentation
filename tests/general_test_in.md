@@ -36,6 +36,8 @@ You can run this on Mac.
 
 You can run this on Linux.
 
+---
+
 ## Architecture
 
 Some text.

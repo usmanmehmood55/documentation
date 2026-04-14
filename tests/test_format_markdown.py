@@ -222,6 +222,32 @@ class FormatMarkdownHeadingsTests(unittest.TestCase):
         self.assertIn("compact the table row", stderr.getvalue())
         self.assertIn("130 characters", stderr.getvalue())
 
+    def test_spacing_removes_standalone_separator_lines(self) -> None:
+        content = (
+            "# Title\n\n"
+            "Paragraph above\n\n"
+            "---\n\n"
+            "Paragraph below\n"
+        )
+
+        expected = (
+            "# Title\n\n"
+            "Paragraph above\n\n"
+            "Paragraph below\n"
+        )
+
+        self.assertEqual(formatter.format_markdown(content, fixes={"spacing"}), expected)
+
+    def test_spacing_preserves_yaml_front_matter_separators(self) -> None:
+        content = (
+            "---\n"
+            "title: Sample\n"
+            "---\n\n"
+            "# Title\n"
+        )
+
+        self.assertEqual(formatter.format_markdown(content, fixes={"spacing"}), content)
+
     def test_check_mode_warns_for_missing_and_misnumbered_headings(self) -> None:
         path = Path("sample.md")
         original = "# Title\n\n## Intro\n\n### 9.7. Wrong number\n"
