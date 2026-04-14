@@ -85,6 +85,14 @@ There should be an empty line after a list.
 There is some text here.
 There should not be an empty space at the end of this file. 
 
+- This is a bullet point, it is long and will be wrapped around appropriately to contain it within ~80 chars:
+  - This is a sub-bullet point, it is also long and will be wrapped around appropriately to contain it within ~80 chars.
+
+1. Create or open a workspace
+   - New workspace: set workspace name, owner, group, summary; choose **Mode A** or **Mode B**.
+   - Add items: select item type, name them, set option/value and default state as needed.
+   - Save the workspace (e.g. under your folder).
+
 ### Section Details
 
 There should be an empty line below.

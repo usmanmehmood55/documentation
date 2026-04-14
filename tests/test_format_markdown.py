@@ -248,6 +248,40 @@ class FormatMarkdownHeadingsTests(unittest.TestCase):
 
         self.assertEqual(formatter.format_markdown(content, fixes={"spacing"}), content)
 
+    def test_wraps_nested_bullet_continuations_without_blank_lines(self) -> None:
+        content = (
+            "- This is a bullet point, it is long and will be wrapped around appropriately to contain it within ~80 chars:\n"
+            "  - This is a sub-bullet point, it is also long and will be wrapped around appropriately to contain it within ~80 chars.\n"
+        )
+
+        expected = (
+            "- This is a bullet point, it is long and will be wrapped around appropriately to\n"
+            "  contain it within ~80 chars:\n"
+            "  - This is a sub-bullet point, it is also long and will be wrapped around\n"
+            "    appropriately to contain it within ~80 chars.\n"
+        )
+
+        self.assertEqual(formatter.format_headings(content), expected)
+
+    def test_wraps_ordered_list_with_nested_bullets_to_standard_width(self) -> None:
+        content = (
+            "1. Create or open a workspace\n"
+            "   - New workspace: set workspace name, owner, group, summary; choose **Mode A** or **Mode B**.\n"
+            "   - Add items: select item type, name them, set option/value and default state as needed.\n"
+            "   - Save the workspace (e.g. under your folder).\n"
+        )
+
+        expected = (
+            "1. Create or open a workspace\n"
+            "   - New workspace: set workspace name, owner, group, summary; choose **Mode A**\n"
+            "     or **Mode B**.\n"
+            "   - Add items: select item type, name them, set option/value and default state\n"
+            "     as needed.\n"
+            "   - Save the workspace (e.g. under your folder).\n"
+        )
+
+        self.assertEqual(formatter.format_headings(content), expected)
+
     def test_check_mode_warns_for_missing_and_misnumbered_headings(self) -> None:
         path = Path("sample.md")
         original = "# Title\n\n## Intro\n\n### 9.7. Wrong number\n"

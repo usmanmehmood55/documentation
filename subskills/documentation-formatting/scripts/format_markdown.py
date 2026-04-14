@@ -210,8 +210,6 @@ def is_list_continuation_line(line: str) -> bool:
     """True if this line continues a preceding list item (indented wrap line)."""
     if not line:
         return False
-    if line.startswith("    ") or line.startswith("\t"):
-        return False
     if is_heading(line) or is_table_line(line):
         return False
     if FENCE_RE.match(line):
@@ -246,7 +244,7 @@ def wrap_list_item_block(block: list[str]) -> list[str]:
 
     if len(block) == 1:
         full = block[0].rstrip()
-        if len(full) <= LIST_ITEM_SINGLE_LINE_MAX:
+        if not base and len(full) <= LIST_ITEM_SINGLE_LINE_MAX:
             return [full]
 
     chunks = [first_content.rstrip()]
@@ -254,9 +252,10 @@ def wrap_list_item_block(block: list[str]) -> list[str]:
         chunks.append(continuation.lstrip(" \t").rstrip())
     paragraph = " ".join(chunk for chunk in chunks if chunk)
     follow_indent = base + (" " * len(marker))
+    wrap_width = WRAP_WIDTH if base else WRAP_THRESHOLD
     # Use the wider threshold so list lines match "about 80–85" (see WRAP_THRESHOLD).
     wrapper = textwrap.TextWrapper(
-        width=WRAP_THRESHOLD,
+        width=wrap_width,
         initial_indent=base + marker,
         subsequent_indent=follow_indent,
         break_long_words=False,
