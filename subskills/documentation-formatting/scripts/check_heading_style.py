@@ -17,7 +17,7 @@ from doc_support import (
     iter_markdown_surface,
     normalize_rel_path,
 )
-from format_markdown import find_heading_numbering_warnings
+from format_markdown import find_heading_numbering_warnings, find_multiple_h1_warnings
 
 
 FORBIDDEN_HEADING_STYLE_RE = re.compile(r"^[ \t]{0,3}#{2,6}[ \t]+\d+\)")
@@ -82,6 +82,22 @@ def run(root: Path, paths: list[str]) -> tuple[dict[str, object], int]:
                     warning,
                     path=rel_path,
                     line=int(line_match.group(1)) if line_match else None,
+                )
+            )
+
+        for warning in find_multiple_h1_warnings(text):
+            line_match = re.search(r"line (\d+)", warning)
+            issues.append(
+                issue(
+                    "warning",
+                    "multiple_h1_headings",
+                    warning,
+                    path=rel_path,
+                    line=int(line_match.group(1)) if line_match else None,
+                    suggestion=(
+                        "Rearrange the document to use one `#` title heading "
+                        "and demote later main headings to section headings."
+                    ),
                 )
             )
 

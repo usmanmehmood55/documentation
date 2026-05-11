@@ -429,6 +429,38 @@ class DocHelperScriptsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertTrue(any(item["type"] == "heading_numbering" for item in self.payload_issues(payload)))
 
+    def test_check_heading_style_reports_multiple_h1_headings(self) -> None:
+        readme_path = CLEAN_ROOT / "README.md"
+        self.patch_file(readme_path, "# Clean Repo\n\n# Second Title\n")
+
+        result = self.run_script("check_heading_style.py", "README.md", root=CLEAN_ROOT)
+        payload = self.load_payload(result, "check_heading_style")
+
+        self.assertEqual(result.returncode, 1)
+        issues = self.payload_issues(payload)
+        multiple_h1 = [item for item in issues if item["type"] == "multiple_h1_headings"]
+        self.assertEqual(len(multiple_h1), 1)
+        self.assertEqual(multiple_h1[0]["line"], 3)
+        self.assertIn("Strongly recommend", multiple_h1[0]["message"])
+
+    def test_check_heading_style_ignores_h1_inside_fenced_code(self) -> None:
+        readme_path = CLEAN_ROOT / "README.md"
+        self.patch_file(
+            readme_path,
+            "# Clean Repo\n\n"
+            "```markdown\n"
+            "# Example Title\n"
+            "```\n\n"
+            "## 1. Overview\n",
+        )
+
+        result = self.run_script("check_heading_style.py", "README.md", root=CLEAN_ROOT)
+        payload = self.load_payload(result, "check_heading_style")
+
+        self.assertEqual(result.returncode, 0)
+        issue_types = {item["type"] for item in self.payload_issues(payload)}
+        self.assertNotIn("multiple_h1_headings", issue_types)
+
     def test_check_heading_style_clean_repo_returns_zero(self) -> None:
         result = self.run_script("check_heading_style.py", "README.md", root=CLEAN_ROOT)
         payload = self.load_payload(result, "check_heading_style")

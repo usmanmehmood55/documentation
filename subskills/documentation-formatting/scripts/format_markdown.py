@@ -195,6 +195,57 @@ def find_heading_numbering_warnings(text: str) -> list[str]:
     return warnings
 
 
+def find_multiple_h1_warnings(text: str) -> list[str]:
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    warnings: list[str] = []
+    h1_lines: list[int] = []
+    in_front_matter = False
+    front_matter_checked = False
+    in_fence = False
+
+    for index, line in enumerate(lines, start=1):
+        stripped = line.rstrip()
+
+        if not front_matter_checked:
+            front_matter_checked = True
+            if stripped == "---":
+                in_front_matter = True
+                continue
+
+        if in_front_matter:
+            if index != 1 and stripped == "---":
+                in_front_matter = False
+            continue
+
+        if FENCE_RE.match(stripped):
+            in_fence = not in_fence
+            continue
+
+        if in_fence:
+            continue
+
+        match = HEADING_RE.match(stripped)
+        if match is None or len(match.group("marks")) != 1:
+            continue
+
+        h1_lines.append(index)
+
+    if len(h1_lines) <= 1:
+        return warnings
+
+    first_h1 = h1_lines[0]
+    for line_no in h1_lines[1:]:
+        warnings.append(
+            "Warning: multiple main H1 headings found at line "
+            f"{line_no}; the document already has its main title at line "
+            f"{first_h1}. Strongly recommend rearranging the document to use "
+            "one `#` title heading and demote later main headings to section "
+            "headings."
+        )
+
+    return warnings
+
+
 def match_list_item_parts(line: str) -> tuple[str, str, str] | None:
     """Return (base_indent, marker, content) for a list item line, or None."""
     match = UNORDERED_ITEM_RE.match(line)
@@ -760,6 +811,7 @@ def main() -> int:
         path = Path(raw_path)
         original = path.read_text(encoding="utf-8")
         formatted = format_markdown(original, fixes=fixes)
+        check_failed = False
         if "tables" in fixes:
             suggestions = find_table_width_suggestions(formatted)
             for suggestion in suggestions:
@@ -767,6 +819,9 @@ def main() -> int:
 
         if args.check and "headings" in fixes:
             for warning in find_heading_numbering_warnings(original):
+                sys.stderr.write(f"{path}: {warning}\n")
+            for warning in find_multiple_h1_warnings(original):
+                check_failed = True
                 sys.stderr.write(f"{path}: {warning}\n")
 
         if args.stdout:
@@ -779,6 +834,7 @@ def main() -> int:
             continue
 
         if formatted == original:
+            changed = changed or check_failed
             continue
 
         changed = True

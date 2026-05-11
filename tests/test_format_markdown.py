@@ -16,6 +16,8 @@ SCRIPTS_DIR = ROOT / "subskills" / "documentation-formatting" / "scripts"
 class FormatterModule(Protocol):
     ALL_FIXES: set[str]
 
+    def find_multiple_h1_warnings(self, text: str) -> list[str]: ...
+
     def format_headings(self, text: str) -> str: ...
 
     def format_markdown(self, text: str, fixes: set[str] | None = None) -> str: ...
@@ -300,6 +302,36 @@ class FormatMarkdownHeadingsTests(unittest.TestCase):
         print_mock.assert_called_once_with(f"Would reformat {path}")
         self.assertIn("heading numbering is missing", stderr.getvalue())
         self.assertIn("heading numbering is mis-numbered", stderr.getvalue())
+
+    def test_check_mode_warns_for_multiple_h1_headings(self) -> None:
+        path = Path("sample.md")
+        original = "# Title\n\n# Second title\n"
+
+        with mock.patch.object(
+            sys, "argv", ["format_markdown.py", "--check", "--headings", str(path)]
+        ):
+            with mock.patch.object(Path, "read_text", return_value=original):
+                with mock.patch.object(Path, "write_text") as write_text:
+                    with mock.patch("builtins.print") as print_mock:
+                        with mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+                            result = formatter.main()
+
+        self.assertEqual(result, 1)
+        write_text.assert_not_called()
+        print_mock.assert_not_called()
+        self.assertIn("multiple main H1 headings", stderr.getvalue())
+        self.assertIn("Strongly recommend rearranging", stderr.getvalue())
+
+    def test_multiple_h1_warning_ignores_fenced_code_blocks(self) -> None:
+        content = (
+            "# Title\n\n"
+            "```markdown\n"
+            "# Example title inside code\n"
+            "```\n\n"
+            "## 1. Section\n"
+        )
+
+        self.assertEqual(formatter.find_multiple_h1_warnings(content), [])
 
 
 if __name__ == "__main__":

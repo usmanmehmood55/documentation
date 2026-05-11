@@ -61,6 +61,9 @@ Only after the user approves, run:
 - Do not substitute repository-local or third-party formatters unless the user
   explicitly asks.
 - Preserve fenced code blocks.
+- Flag documents with more than one H1 (`#`) and strongly recommend
+  rearranging them to use one title heading with later headings demoted to
+  sections.
 - Do not wrap tables as prose.
 - Warn about wide table rows instead of force-wrapping them.
 - Keep heading numbering deterministic and hierarchical.

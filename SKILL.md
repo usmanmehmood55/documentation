@@ -453,6 +453,9 @@ different style.
 Rules:
 
 - The first heading (`#`) is the document title and is not numbered.
+- Use exactly one main heading (`#`) per document. If a document contains more
+  than one H1, strongly recommend rearranging the document so there is one
+  title heading and later main headings are demoted to section headings.
 - Use numbered headings after the title.
 - Use consistent hierarchical numbering such as:
   - `## 1. Heading`
